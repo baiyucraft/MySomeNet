@@ -85,14 +85,13 @@ class PriorBox(object):
         # 获得输入图片的大小，默认为300x300
         self.image_size = cfg['min_dim']
         self.num_priors = len(cfg['aspect_ratios'])
-        
-        
+
         # self.variance = cfg['variance'] or [0.1]
         # self.feature_maps = cfg['feature_maps']
-        
+
         self.variance = [0.1, 0.2]
         self.feature_maps = [38, 19, 10, 5, 3, 1]
-        
+
         self.min_sizes = cfg['min_sizes']
         self.max_sizes = cfg['max_sizes']
         self.steps = [cfg['min_dim'] / x for x in cfg['feature_maps']]
