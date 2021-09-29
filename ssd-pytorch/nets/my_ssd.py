@@ -30,7 +30,7 @@ class SSD(nn.Module):
         # 生成锚框 8732
         self.priorbox = PriorBox(feature_maps, self.cfg)
         with torch.no_grad():
-            self.priors = torch.tensor(self.priorbox.forward()).type(torch.FloatTensor)
+            self.priors = self.priorbox.forward().float()
 
     def forward(self, x):
         batch_size = x.shape[0]

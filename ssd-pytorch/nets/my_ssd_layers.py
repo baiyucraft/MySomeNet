@@ -15,7 +15,7 @@ class Detect(Function):
         self.num_classes = num_classes
         self.background_label = bkg_label
         self.top_k = top_k
-        self.nms_thresh = nms_thresh
+        self.nms_thresh = nms_thresh9
         if nms_thresh <= 0:
             raise ValueError('nms_threshold must be non negative.')
         self.conf_thresh = conf_thresh
@@ -82,105 +82,20 @@ class Detect(Function):
 class PriorBox(object):
     def __init__(self, feature_maps, cfg):
         super(PriorBox, self).__init__()
-        # 获得输入图片的大小，默认为300x300
-        self.image_size = cfg['min_dim']
-        self.num_priors = len(cfg['aspect_ratios'])
-
-        # self.variance = cfg['variance'] or [0.1]
-
-        self.variance = [0.1, 0.2]
-        self.feature_maps = [f[0] for f in feature_maps]
-
-        self.min_sizes = cfg['min_sizes']
-        self.max_sizes = cfg['max_sizes']
+        self.feature_maps = feature_maps
+        # 大小
         self.sizes = cfg['sizes']
-        self.sizes_tenser = torch.Tensor(cfg['sizes'])
-
-        # 300 / feature_map
-        self.steps = [cfg['min_dim'] / x for x in self.feature_maps]
-
-        self.aspect_ratios = cfg['aspect_ratios']
-        self.ratio_tensor = torch.Tensor(cfg['aspect_ratios'])
-
+        # 宽高比
+        self.ratios = cfg['ratios']
+        
+        self.variance = cfg['variance']
         self.clip = cfg['clip']
         for v in self.variance:
             if v <= 0:
                 raise ValueError('Variances must be greater than 0')
 
     def forward(self):
-        mean = []
-        in_height, in_width = 300, 300
-        # 偏移0.5
-        offset_h, offset_w = 0.5, 0.5
-        # 步长
-        steps_h = 1.0 / 300
-        steps_w = 1.0 / 300
-        center_h = (torch.arange(300) + offset_h) * steps_h
-        center_w = (torch.arange(300) + offset_w) * steps_w
-        shift_y, shift_x = torch.meshgrid(center_h, center_w)
-        shift_y, shift_x = shift_y.reshape(-1), shift_x.reshape(-1)
-
-        w = torch.cat((self.sizes_tenser * torch.sqrt(self.ratio_tensor[0]),
-                       self.sizes[0] * torch.sqrt(self.ratio_tensor[1:]))) * in_height / in_width
-        h = torch.cat((self.sizes_tenser / torch.sqrt(self.ratio_tensor[0]),
-                       self.sizes[0] / torch.sqrt(self.ratio_tensor[1:])))
-
-        # 除以2来获得半高和半宽
-        anchor_manipulations = torch.stack((-w, -h, w, h)).T.repeat(in_height * in_width, 1) / 2
-
-        # 每个中心点都将有“boxes_per_pixel”个锚框，
-        # 所以生成含所有锚框中心的网格，重复了“boxes_per_pixel”次
-        out_grid = torch.stack([shift_x, shift_y, shift_x, shift_y], dim=1).repeat_interleave(5, dim=0)
-        output = out_grid + anchor_manipulations
-        return output.unsqueeze(0)
-        # ----------------------------------------#
-        #   对feature_maps进行循环
-        #   利用SSD会获得6个有效特征层用于预测
-        #   边长分别为[38, 19, 10, 5, 3, 1]
-        # ----------------------------------------#
-        for k, f in enumerate(self.feature_maps):
-            # ----------------------------------------#
-            #   分别对6个有效特征层建立网格
-            #   [38, 19, 10, 5, 3, 1]
-            # ----------------------------------------#
-            x, y = np.meshgrid(np.arange(f), np.arange(f))
-            x = x.reshape(-1)
-            y = y.reshape(-1)
-            # ----------------------------------------#
-            #   所有先验框均为归一化的形式
-            #   即在0-1之间
-            # ----------------------------------------#
-            for i, j in zip(y, x):
-                f_k = self.image_size / self.steps[k]
-                # ----------------------------------------#
-                #   计算网格的中心
-                # ----------------------------------------#
-                cx = (j + 0.5) / f_k
-                cy = (i + 0.5) / f_k
-
-                # ----------------------------------------#
-                #   获得小的正方形
-                # ----------------------------------------#
-                s_k = self.min_sizes[k] / self.image_size
-                mean += [cx, cy, s_k, s_k]
-
-                # ----------------------------------------#
-                #   获得大的正方形
-                # ----------------------------------------#
-                s_k_prime = sqrt(s_k * (self.max_sizes[k] / self.image_size))
-                mean += [cx, cy, s_k_prime, s_k_prime]
-
-                # ----------------------------------------#
-                #   获得两个的长方形
-                # ----------------------------------------#
-                for ar in self.aspect_ratios[k]:
-                    mean += [cx, cy, s_k * sqrt(ar), s_k / sqrt(ar)]
-                    mean += [cx, cy, s_k / sqrt(ar), s_k * sqrt(ar)]
-
-        # ----------------------------------------#
-        #   获得所有的先验框 8732,4
-        # ----------------------------------------#
-        output = torch.Tensor(mean).view(-1, 4)
+        output = torch.cat([multibox_prior(f, self.sizes[i], self.ratios[i]) for i, f in enumerate(self.feature_maps)])
 
         if self.clip:
             output.clamp_(max=1, min=0)
@@ -189,8 +104,8 @@ class PriorBox(object):
 
 def multibox_prior(data, sizes, ratios):
     """生成以每个像素为中心具有不同形状的锚框。"""
-    in_height, in_width = data.shape[-2:]
-    device, num_sizes, num_ratios = data.device, len(sizes), len(ratios)
+    in_height, in_width = data[0],data[1]
+    device, num_sizes, num_ratios = 'cpu', len(sizes), len(ratios)
     boxes_per_pixel = (num_sizes + num_ratios - 1)
     size_tensor = torch.tensor(sizes, device=device)
     ratio_tensor = torch.tensor(ratios, device=device)
@@ -198,32 +113,40 @@ def multibox_prior(data, sizes, ratios):
     # 为了将锚点移动到像素的中心，需要设置偏移量。
     # 因为一个像素的的高为1且宽为1，我们选择偏移我们的中心0.5
     offset_h, offset_w = 0.5, 0.5
-    steps_h = 1.0 / in_height  # Scaled steps in y axis
-    steps_w = 1.0 / in_width  # Scaled steps in x axis
-
-    # 生成锚框的所有中心点
-    center_h = (torch.arange(in_height, device=device) + offset_h) * steps_h
-    center_w = (torch.arange(in_width, device=device) + offset_w) * steps_w
+ 
+    # 生成锚框的所有网格
+    center_h = (torch.arange(in_height, device=device) + offset_h) / in_height
+    center_w = (torch.arange(in_width, device=device) + offset_w) / in_width
     shift_y, shift_x = torch.meshgrid(center_h, center_w)
     shift_y, shift_x = shift_y.reshape(-1), shift_x.reshape(-1)
 
     # 生成“boxes_per_pixel”个高和宽，
     # 之后用于创建锚框的四角坐标 (xmin, xmax, ymin, ymax)
-    w = torch.cat((size_tensor * torch.sqrt(ratio_tensor[0]),
-                   sizes[0] * torch.sqrt(ratio_tensor[1:]))) \
-        * in_height / in_width  # Handle rectangular inputs
-    h = torch.cat((size_tensor / torch.sqrt(ratio_tensor[0]),
-                   sizes[0] / torch.sqrt(ratio_tensor[1:])))
+    # w = torch.cat((size_tensor * torch.sqrt(ratio_tensor[0]),
+    #                sizes[0] * torch.sqrt(ratio_tensor[1:]))) * in_height / in_width
+    # h = torch.cat((size_tensor / torch.sqrt(ratio_tensor[0]),
+    #                sizes[0] / torch.sqrt(ratio_tensor[1:])))
     # 除以2来获得半高和半宽
-    anchor_manipulations = torch.stack((-w, -h, w, h)).T.repeat(
-        in_height * in_width, 1) / 2
+    # anchor_manipulations = torch.stack((-w, -h, w, h)).T.repeat(in_height * in_width, 1) / 2
 
     # 每个中心点都将有“boxes_per_pixel”个锚框，
     # 所以生成含所有锚框中心的网格，重复了“boxes_per_pixel”次
-    out_grid = torch.stack([shift_x, shift_y, shift_x, shift_y],
-                           dim=1).repeat_interleave(boxes_per_pixel, dim=0)
-    output = out_grid + anchor_manipulations
-    return output.unsqueeze(0)
+    # out_grid = torch.stack([shift_x, shift_y, shift_x, shift_y],
+    #                        dim=1).repeat_interleave(boxes_per_pixel, dim=0)
+    # output = out_grid + anchor_manipulations
+    # return output.unsqueeze(0)
+    mean = []
+    for cx, cy in zip(shift_x, shift_y):
+        # 小正方形
+        mean += [cx, cy, sizes[0], sizes[0]]
+        # 大正方形
+        mean += [cx, cy, sizes[1], sizes[1]]
+        # 宽高比的正方形
+        for r in ratios:
+            mean += [cx, cy, sizes[0] * sqrt(r), sizes[0] / sqrt(r)]
+            mean += [cx, cy, sizes[0] / sqrt(r), sizes[0] * sqrt(r)]
+    output = torch.Tensor(mean).reshape(-1, 4)
+    return output
 
 
 class L2Norm(nn.Module):
