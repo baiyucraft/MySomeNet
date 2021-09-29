@@ -11,7 +11,7 @@ class SSD(nn.Module):
         mode: train or test
     """
 
-    def __init__(self, mode, net, loc_layers, conf_layers, num_classes, confidence, nms_iou):
+    def __init__(self, mode, net, loc_layers, conf_layers, feature_maps, num_classes, confidence, nms_iou):
         super(SSD, self).__init__()
         self.num_classes = num_classes
         self.net = net
@@ -28,7 +28,7 @@ class SSD(nn.Module):
 
         self.cfg = Config
         # 生成锚框 8732
-        self.priorbox = PriorBox(self.cfg)
+        self.priorbox = PriorBox(feature_maps, self.cfg)
         with torch.no_grad():
             self.priors = torch.tensor(self.priorbox.forward()).type(torch.FloatTensor)
 
@@ -103,6 +103,13 @@ def get_multibox(layers, num_classes):
     loc_layers = nn.ModuleList()
     conf_layers = nn.ModuleList()
 
+    feature_maps = []
+    x = torch.randn(size=(5, 3, Config['in_height'], Config['in_width']))
+    for layer in layers:
+        x = layer(x)
+        feature_maps.append((x.shape[2], x.shape[3]))
+    feature_maps = [feature_maps[2]] + feature_maps[-5:]
+
     # conv4_3 to (512,38,38)
     in_channels = layers[3][4].out_channels
     loc_layers.add_module('conv4_3_loc', nn.Conv2d(in_channels, 4 * 4, kernel_size=3, padding=1))
@@ -132,7 +139,7 @@ def get_multibox(layers, num_classes):
     in_channels = layers[10][-2].out_channels
     loc_layers.add_module('conv11_loc', nn.Conv2d(in_channels, 4 * 4, kernel_size=3, padding=1))
     conf_layers.add_module('conv11_conf', nn.Conv2d(in_channels, 4 * num_classes, kernel_size=3, padding=1))
-    return loc_layers, conf_layers
+    return loc_layers, conf_layers, feature_maps
 
 
 def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
@@ -146,8 +153,8 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
     # 主干网络和额外网络
     layers = get_bone_extras(3)
     # Multibox, loc_layers: bbox_predict, conf_layers: class_predict,
-    loc_layers, conf_layers = get_multibox(layers, num_classes)
-    ssd = SSD(mode, layers, loc_layers, conf_layers, num_classes, confidence, nms_iou)
+    loc_layers, conf_layers, feature_maps = get_multibox(layers, num_classes)
+    ssd = SSD(mode, layers, loc_layers, conf_layers, feature_maps, num_classes, confidence, nms_iou)
     return ssd
 
 
