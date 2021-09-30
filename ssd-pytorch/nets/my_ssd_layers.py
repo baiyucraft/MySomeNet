@@ -28,7 +28,7 @@ class Detect(nn.Module):
         self.nms_thresh = nms_thresh
         if nms_thresh <= 0:
             raise ValueError('nms_threshold must be non negative.')
-            
+
         # 0.1，0.2， 将损失放大，trick
         self.variance = Config['variance']
 
@@ -44,8 +44,6 @@ class Detect(nn.Module):
 
         # batch_size
         batch_size = loc_data.shape[0]
-        # 锚框数量
-        num_priors = prior_data.shape[0]
         # batch_size * num_classes *  * 5
         output = torch.zeros(batch_size, self.num_classes, self.top_k, 5)
 

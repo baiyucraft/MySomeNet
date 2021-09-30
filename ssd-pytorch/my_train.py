@@ -7,12 +7,12 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from nets.ssd import get_ssd
-from nets.ssd_training import LossHistory, MultiBoxLoss, weights_init
+from nets.my_ssd import get_ssd
+from nets.my_ssd_training import LossHistory, MultiBoxLoss, weights_init
 from utils.config import Config
 from utils.dataloader import SSDDataset, ssd_dataset_collate
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 
 # ------------------------------------------------------------------------#
@@ -22,6 +22,9 @@ warnings.filterwarnings("ignore")
 #   训练前注意在config.py里面修改num_classes
 #   训练世代、学习率、批处理大小等参数在本代码靠下的if True:内进行修改。
 # -------------------------------------------------------------------------#
+from utils.my_utils import try_gpu
+
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -120,14 +123,22 @@ def fit_one_epoch(net, criterion, epoch, epoch_size, epoch_size_val, gen, genval
 #   https://www.bilibili.com/video/BV1zE411u7Vw
 # ----------------------------------------------------#
 if __name__ == "__main__":
+    Cuda = True
+    device = try_gpu()
+    model = get_ssd("train", Config["num_classes"])
+    x = torch.randn(size=(2, 3, 300, 300))
+    output = model(x)
+
+    loss = MultiBoxLoss(Config['num_classes'], 0.5, True, 0, True, 3, 0.5, False)
+    targets = torch.Tensor([[[0.1, 0.1, 0.2, 0.2, 2], [0.1, 0.1, 0.2, 0.2, 2]],
+                            [[0.2, 0.2, 0.3, 0.3, 5], [0.2, 0.2, 0.3, 0.3, 5]]])
+    loss(output, targets)
     # -------------------------------#
     #   是否使用Cuda
     #   没有GPU可以设置成False
     # -------------------------------#
-    Cuda = True
-    backbone = 'vgg'
 
-    model = get_ssd("train", Config["num_classes"], 'vgg')
+    """
     weights_init(model)
     # ------------------------------------------------------#
     #   权值文件请看README，百度网盘下载
@@ -243,3 +254,4 @@ if __name__ == "__main__":
             val_loss = fit_one_epoch(net, criterion, epoch, epoch_size, epoch_size_val, gen, gen_val, Unfreeze_Epoch,
                                      Cuda)
             lr_scheduler.step(val_loss)
+    """

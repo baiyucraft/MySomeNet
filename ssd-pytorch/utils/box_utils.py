@@ -3,125 +3,99 @@ import torch
 from PIL import Image
 
 
-def point_form(boxes):
-    # ------------------------------#
-    #   获得框的左上角和右下角
-    # ------------------------------#
-    return torch.cat((boxes[:, :2] - boxes[:, 2:] / 2,
-                      boxes[:, :2] + boxes[:, 2:] / 2), 1)
+def b_box_to_c_box(boxes):
+    """(x1, y1, x2, y2) to (cx, cy, w, h)"""
+    x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
+    w = x2 - x1
+    h = y2 - y1
+    return torch.stack((cx, cy, w, h), dim=-1)
 
 
-def center_size(boxes):
-    # ------------------------------#
-    #   获得框的中心和宽高
-    # ------------------------------#
-    return torch.cat((boxes[:, 2:] + boxes[:, :2]) / 2,
-                     boxes[:, 2:] - boxes[:, :2], 1)
+def c_box_to_b_box(boxes):
+    """(cx, cy, w, h) to (x1, y1, x2, y2)"""
+    cx, cy, w, h = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    x1 = cx - 0.5 * w
+    y1 = cy - 0.5 * h
+    x2 = cx + 0.5 * w
+    y2 = cy + 0.5 * h
+    return torch.stack((x1, y1, x2, y2), dim=-1)
 
 
-def intersect(box_a, box_b):
-    A = box_a.size(0)
-    B = box_b.size(0)
-    # ------------------------------#
-    #   获得交矩形的左上角
-    # ------------------------------#
-    max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
-                       box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
-    # ------------------------------#
-    #   获得交矩形的右下角
-    # ------------------------------#
-    min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2),
-                       box_b[:, :2].unsqueeze(0).expand(A, B, 2))
+def get_iou(box_a, box_b):
+    """获得两个框的交并比"""
 
-    inter = torch.clamp((max_xy - min_xy), min=0)
-    # -------------------------------------#
-    #   计算先验框和所有真实框的重合面积
-    # -------------------------------------#
-    return inter[:, :, 0] * inter[:, :, 1]
+    def get_area(boxes):
+        return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
 
+    areas_a = get_area(box_a)
+    areas_b = get_area(box_b)
+    # 计算相交的 左上 右下，并计算面积
+    inter_left_uppers = torch.max(box_a[:, None, :2], box_b[:, :2])
+    inter_right_lowers = torch.min(box_a[:, None, 2:], box_b[:, 2:])
+    inters = (inter_right_lowers - inter_left_uppers).clamp(min=0)
 
-def jaccard(box_a, box_b):
-    # -------------------------------------#
-    #   返回的inter的shape为[A,B]
-    #   代表每一个真实框和先验框的交矩形
-    # -------------------------------------#
-    inter = intersect(box_a, box_b)
-    # -------------------------------------#
-    #   计算先验框和真实框各自的面积
-    # -------------------------------------#
-    area_a = ((box_a[:, 2] - box_a[:, 0]) *
-              (box_a[:, 3] - box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
-    area_b = ((box_b[:, 2] - box_b[:, 0]) *
-              (box_b[:, 3] - box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
-
-    union = area_a + area_b - inter
-    # -------------------------------------#
-    #   每一个真实框和先验框的交并比[A,B]
-    # -------------------------------------#
+    inter = inters[:, :, 0] * inters[:, :, 1]
+    union = areas_a[:, None] + areas_b - inter
     return inter / union
 
 
-def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
-    # ----------------------------------------------#
-    #   计算所有的先验框和真实框的重合程度
-    # ----------------------------------------------#
-    overlaps = jaccard(
-        truths,
-        point_form(priors)
-    )
-    # ----------------------------------------------#
-    #   所有真实框和先验框的最好重合程度
-    #   best_prior_overlap [truth_box,1]
-    #   best_prior_idx [truth_box,0]
-    # ----------------------------------------------#
+def match(threshold, truths, priors, variances, labels):
+    """
+    计算所有 锚框 和 真实框 的重合程度
+    Args:
+        threshold: 阈值
+        truths: 真实框
+        priors: 预测锚框
+        variances: trick
+        labels: 标签
+    """
+    # 计算交并比
+    overlaps = get_iou(truths, c_box_to_b_box(priors))
+
+    # 得到与 每个真实框 重合最好 的锚框，长度为真实框个数
     best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
-    best_prior_idx.squeeze_(1)
-    best_prior_overlap.squeeze_(1)
-    # ----------------------------------------------#
-    #   所有先验框和真实框的最好重合程度
-    #   best_truth_overlap [1,prior]
-    #   best_truth_idx [1,prior]
-    # ----------------------------------------------#
+    best_prior_idx.squeeze_()
+    best_prior_overlap.squeeze_()
+
+    # 得到与 每个锚框 重合最好 的真实框，长度为锚框个数
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
-    best_truth_idx.squeeze_(0)
-    best_truth_overlap.squeeze_(0)
+    best_truth_idx.squeeze_()
+    best_truth_overlap.squeeze_()
 
-    # ----------------------------------------------#
-    #   用于保证每个真实框都至少有对应的一个先验框
-    # ----------------------------------------------#
-    for j in range(best_prior_idx.size(0)):
+    # 保证每个 真实框 至少对应 一个 锚框
+    for j in range(best_prior_idx.shape[0]):
         best_truth_idx[best_prior_idx[j]] = j
-    best_truth_overlap.index_fill_(0, best_prior_idx, 2)
 
-    # ----------------------------------------------#
-    #   获取每一个先验框对应的真实框[num_priors,4]
-    # ----------------------------------------------#
+    # 给其中填充 2
+    best_truth_overlap.index_fill_(dim=0, index=best_prior_idx, value=2)
+
+    # 获取 每一个 锚框 对应的 真实框 的 boxes
     matches = truths[best_truth_idx]
-    # Shape: [num_priors]
+    # 类别
     conf = labels[best_truth_idx] + 1
-
-    # ----------------------------------------------#
-    #   如果重合程度小于threhold则认为是背景
-    # ----------------------------------------------#
+    # 如果重合度 小于 阈值 则认为是背景
     conf[best_truth_overlap < threshold] = 0
-
-    # ----------------------------------------------#
-    #   利用真实框和先验框进行编码
-    #   编码后的结果就是网络应该有的预测结果
-    # ----------------------------------------------#
+    # 得到偏置
     loc = encode(matches, priors, variances)
 
-    # [num_priors,4]
-    loc_t[idx] = loc
-    # [num_priors]
-    conf_t[idx] = conf
+    return loc, conf
 
 
-def encode(matched, priors, variances):
-    g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
-    g_cxcy /= (variances[0] * priors[:, 2:])
+def encode(matches, priors, variances):
+    """
+    计算c_box
+    具体计算:
+        loc_x = (b_center_x - p_center_x) / (p_width * v)
+        loc_y = (b_center_y - p_center_y) / (p_height * v)
+        loc_w = log(b_width / p_width) / v
+        loc_h = log(b_height / p_height) / v
+    """
+    matches = b_box_to_c_box(matches)
 
-    g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
+    g_cxcy = (matches[:, :2] - priors[:, :2]) / (variances[0] * priors[:, 2:])
+    g_wh = matches[:, 2:] / priors[:, 2:]
     g_wh = torch.log(g_wh) / variances[1]
     return torch.cat([g_cxcy, g_wh], 1)
 
@@ -132,42 +106,22 @@ def decode(loc, priors, variances):
     Args:
         loc: 偏移值
         priors: 默认框
+        variances: trick
     具体计算:
-        b_center_x = p_center_x + loc_x * p_width
-        b_center_y = p_center_y + loc_y * p_height
-        b_width = p_width * exp(loc_w)
-        b_height = p_height * exp(loc_h)
+        b_center_x = p_center_x + loc_x * p_width * v
+        b_center_y = p_center_y + loc_y * p_height * v
+        b_width = p_width * exp(loc_w  * v)
+        b_height = p_height * exp(loc_h  * v)
     """
-    boxes = torch.cat((priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
+    boxes = torch.cat((priors[:, :2] + loc[:, :2] * priors[:, 2:] * variances[0],
                        priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
     # 将 center_box 转换为 bounding_box(x_min, y_min, x_max, y_max)
-    boxes[:, :2] -= boxes[:, 2:] / 2
-    boxes[:, 2:] += boxes[:, :2]
-    return boxes
+    return c_box_to_b_box(boxes)
 
 
 def log_sum_exp(x):
     x_max = x.data.max()
     return torch.log(torch.sum(torch.exp(x - x_max), 1, keepdim=True)) + x_max
-
-
-def box_iou(boxes1, boxes2):
-    """计算两个锚框或边界框列表中成对的交并比。"""
-
-    def get_area(boxes):
-        return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-
-    areas1 = get_area(boxes1)
-    areas2 = get_area(boxes2)
-    #  `inter_upperlefts`, `inter_lowerrights`, `inters`的形状:
-    # (boxes1的数量, boxes2的数量, 2)
-    inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
-    inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
-    inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)
-    # `inter_areas` and `union_areas`的形状: (boxes1的数量, boxes2的数量)
-    inter_areas = inters[:, :, 0] * inters[:, :, 1]
-    union_areas = areas1[:, None] + areas2 - inter_areas
-    return inter_areas / union_areas
 
 
 def nms(boxes, scores, overlap=0.5, top_k=200):
@@ -205,9 +159,9 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         rem_areas = area[idx]
         # 整体部分（并集）
         union = (rem_areas - inter) + area[i]
-        IoU = inter / union
+        iou = inter / union
         # 迭代 小于等于 阈值的 idx
-        idx = idx[IoU.le(overlap)]
+        idx = idx[iou.le(overlap)]
     return torch.Tensor(keep).long(), count
 
 
