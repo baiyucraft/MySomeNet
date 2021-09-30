@@ -9,6 +9,8 @@ class SSD(nn.Module):
     """
     Args:
         mode: train or test
+        net: all net
+
     """
 
     def __init__(self, mode, net, loc_layers, conf_layers, feature_maps, num_classes, confidence, nms_iou):
@@ -30,7 +32,7 @@ class SSD(nn.Module):
         # 生成锚框 8732
         self.priorbox = PriorBox(feature_maps, self.cfg)
         with torch.no_grad():
-            self.priors = self.priorbox.forward().float()
+            self.priors = self.priorbox.forward()
 
     def forward(self, x):
         batch_size = x.shape[0]
@@ -56,8 +58,8 @@ class SSD(nn.Module):
             loc.append(l(x).permute(0, 2, 3, 1).flatten(start_dim=1))
             conf.append(c(x).permute(0, 2, 3, 1).flatten(start_dim=1))
 
-        # loc  reshape到batch_size * num_anchors * 4
-        # conf  reshape到batch_size * num_anchors * num_classes
+        # loc  reshape到 batch_size * num_anchors * 4
+        # conf  reshape到 batch_size * num_anchors * num_classes
         loc = torch.cat(loc, 1).reshape(batch_size, -1, 4)
         conf = torch.cat(conf, 1).reshape(batch_size, -1, self.num_classes)
 
@@ -100,6 +102,7 @@ def get_bone_extras(i):
 
 def get_multibox(layers, num_classes):
     """Multibox"""
+    # 4 6 6 6 4 4 为锚框数
     loc_layers = nn.ModuleList()
     conf_layers = nn.ModuleList()
 
@@ -160,7 +163,6 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
 
 if __name__ == '__main__':
     # print(get_bone_extras(3))
-    ssd = get_ssd('train', 21)
-    x = torch.randn(size=(5, 3, 300, 300))
-    for i in ssd(x):
-        print(i.shape)
+    ssd = get_ssd('test', 21)
+    x = torch.randn(size=(1, 3, 300, 300))
+    print(ssd(x).shape)

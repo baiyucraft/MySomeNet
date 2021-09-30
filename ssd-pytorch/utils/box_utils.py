@@ -126,15 +126,21 @@ def encode(matched, priors, variances):
     return torch.cat([g_cxcy, g_wh], 1)
 
 
-# -------------------------------------------------------------------#
-#   Adapted from https://github.com/Hakuyume/chainer-ssd
-#   利用预测结果对先验框进行调整，前两个参数用于调整中心的xy轴坐标
-#   后两个参数用于调整先验框宽高
-# -------------------------------------------------------------------#
 def decode(loc, priors, variances):
-    boxes = torch.cat((
-        priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
-        priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
+    """
+    得到预测框(b_box)
+    Args:
+        loc: 偏移值
+        priors: 默认框
+    具体计算:
+        b_center_x = p_center_x + loc_x * p_width
+        b_center_y = p_center_y + loc_y * p_height
+        b_width = p_width * exp(loc_w)
+        b_height = p_height * exp(loc_h)
+    """
+    boxes = torch.cat((priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
+                       priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
+    # 将 center_box 转换为 bounding_box(x_min, y_min, x_max, y_max)
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes
@@ -145,46 +151,59 @@ def log_sum_exp(x):
     return torch.log(torch.sum(torch.exp(x - x_max), 1, keepdim=True)) + x_max
 
 
-# -------------------------------------------------------------------#
-#   Original author: Francisco Massa:
-#   https://github.com/fmassa/object-detection.torch
-#   Ported to PyTorch by Max deGroot (02/01/2017)
-#   该部分用于进行非极大抑制，即筛选出一定区域内得分最大的框。
-# -------------------------------------------------------------------#
+def box_iou(boxes1, boxes2):
+    """计算两个锚框或边界框列表中成对的交并比。"""
+
+    def get_area(boxes):
+        return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+
+    areas1 = get_area(boxes1)
+    areas2 = get_area(boxes2)
+    #  `inter_upperlefts`, `inter_lowerrights`, `inters`的形状:
+    # (boxes1的数量, boxes2的数量, 2)
+    inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
+    inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
+    inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)
+    # `inter_areas` and `union_areas`的形状: (boxes1的数量, boxes2的数量)
+    inter_areas = inters[:, :, 0] * inters[:, :, 1]
+    union_areas = areas1[:, None] + areas2 - inter_areas
+    return inter_areas / union_areas
+
+
 def nms(boxes, scores, overlap=0.5, top_k=200):
-    keep = scores.new(scores.size(0)).zero_().long()
-    if boxes.numel() == 0:
-        return keep
-    x1 = boxes[:, 0]
-    y1 = boxes[:, 1]
-    x2 = boxes[:, 2]
-    y2 = boxes[:, 3]
-    area = torch.mul(x2 - x1, y2 - y1)
-    v, idx = scores.sort(0)
-    idx = idx[-top_k:]
-    xx1 = boxes.new()
-    yy1 = boxes.new()
-    xx2 = boxes.new()
-    yy2 = boxes.new()
+    """
+    非极大抑制，筛选出一定区域内得分最大的框
+    """
+    print(boxes.shape)
+    print(scores.shape)
+    keep = torch.zeros_like(scores).long()
+    print(keep.shape, '\n')
+
+    x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    # 面积
+    area = (x2 - x1) * (y2 - y1)
+    # 将分数排序，取大的 top_k 个
+    v, idx = scores.sort(0, descending=True)
+    idx = idx[:top_k]
+
     w = boxes.new()
     h = boxes.new()
 
     count = 0
     while idx.numel() > 0:
+        # 从大取出idx
         i = idx[-1]
         keep[count] = i
         count += 1
         if idx.size(0) == 1:
             break
+
         idx = idx[:-1]
-        torch.index_select(x1, 0, idx, out=xx1)
-        torch.index_select(y1, 0, idx, out=yy1)
-        torch.index_select(x2, 0, idx, out=xx2)
-        torch.index_select(y2, 0, idx, out=yy2)
-        xx1 = torch.clamp(xx1, min=x1[i])
-        yy1 = torch.clamp(yy1, min=y1[i])
-        xx2 = torch.clamp(xx2, max=x2[i])
-        yy2 = torch.clamp(yy2, max=y2[i])
+
+        box = boxes[idx]
+        xx1, yy1 = box[:, 0].clamp(x1[i]), box[:, 1].clamp(y1[i])
+        xx2, yy2 = box[:, 2].clamp(x2[i]), box[:, 3].clamp(y2[i])
+
         w.resize_as_(xx2)
         h.resize_as_(yy2)
         w = xx2 - xx1
