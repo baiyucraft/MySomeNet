@@ -173,49 +173,42 @@ def box_iou(boxes1, boxes2):
 def nms(boxes, scores, overlap=0.5, top_k=200):
     """
     非极大抑制，筛选出一定区域内得分最大的框
+    Return: 保留的 下标 以及 个数
     """
-    print(boxes.shape)
-    print(scores.shape)
-    keep = torch.zeros_like(scores).long()
-    print(keep.shape, '\n')
 
     x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
     # 面积
     area = (x2 - x1) * (y2 - y1)
     # 将分数排序，取大的 top_k 个
-    v, idx = scores.sort(0, descending=True)
+    v, idx = scores.sort(0)
     idx = idx[:top_k]
 
-    w = boxes.new()
-    h = boxes.new()
-
-    count = 0
+    keep, count = [], 0
     while idx.numel() > 0:
-        # 从大取出idx
+        # 从idx取出score最高的下标，并将此框的面积与剩下的框计算交并比iou
         i = idx[-1]
-        keep[count] = i
+        keep.append(i)
         count += 1
         if idx.size(0) == 1:
             break
 
         idx = idx[:-1]
-
-        box = boxes[idx]
-        xx1, yy1 = box[:, 0].clamp(x1[i]), box[:, 1].clamp(y1[i])
-        xx2, yy2 = box[:, 2].clamp(x2[i]), box[:, 3].clamp(y2[i])
-
-        w.resize_as_(xx2)
-        h.resize_as_(yy2)
-        w = xx2 - xx1
-        h = yy2 - yy1
-        w = torch.clamp(w, min=0.0)
-        h = torch.clamp(h, min=0.0)
+        # 计算相交的面积（交集）
+        in_box = boxes[idx]
+        xx1, yy1 = in_box[:, 0].clamp(min=x1[i]), in_box[:, 1].clamp(min=y1[i])
+        xx2, yy2 = in_box[:, 2].clamp(max=x2[i]), in_box[:, 3].clamp(max=y2[i])
+        w = (xx2 - xx1).clamp(0.0)
+        h = (yy2 - yy1).clamp(0.0)
         inter = w * h
-        rem_areas = torch.index_select(area, 0, idx)
+
+        # 剩下的框 面积
+        rem_areas = area[idx]
+        # 整体部分（并集）
         union = (rem_areas - inter) + area[i]
         IoU = inter / union
+        # 迭代 小于等于 阈值的 idx
         idx = idx[IoU.le(overlap)]
-    return keep, count
+    return torch.Tensor(keep).long(), count
 
 
 def letterbox_image(image, size):

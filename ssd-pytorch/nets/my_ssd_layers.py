@@ -3,7 +3,6 @@ from math import sqrt
 
 import torch
 from torch import nn
-from torch.autograd import Function
 from utils.box_utils import decode, nms
 from utils.config import Config
 
@@ -13,9 +12,9 @@ class Detect(nn.Module):
     Args:
         num_classes: 种类
         bkg_label: 背景的标签号
-        top_k:
-        conf_thresh:
-        nms_thresh:
+        top_k: 每个类别前 top_k 的框
+        conf_thresh: 类别的置信阈值
+        nms_thresh: 框交并比的阈值
     """
 
     def __init__(self, num_classes, bkg_label, top_k, conf_thresh, nms_thresh):
@@ -26,10 +25,10 @@ class Detect(nn.Module):
 
         self.top_k = top_k
         self.conf_thresh = conf_thresh
-        self.conf_thresh = 0.1
         self.nms_thresh = nms_thresh
         if nms_thresh <= 0:
             raise ValueError('nms_threshold must be non negative.')
+            
         # 0.1，0.2， 将损失放大，trick
         self.variance = Config['variance']
 
@@ -58,7 +57,7 @@ class Detect(nn.Module):
             # 获得基于默认框的预测框，b_box形式
             decoded_boxes = decode(loc_data[i], prior_data, self.variance)
             # 类别置信 num_classes * num_anchors
-            conf_scores = conf_preds[i].clone()
+            conf_scores = conf_preds[i]
 
             # 查看针对每个类 在 所有框中的 置信分数
             for cl in range(1, self.num_classes):
@@ -75,9 +74,8 @@ class Detect(nn.Module):
 
                 # 利用这些预测框进行非极大抑制
                 ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
-                output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1), boxes[ids[:count]]), 1)
-                break
-
+                # 存进第i张图的第cl个分类，保留的 ids 的socres和boxes
+                output[i, cl, :count] = torch.cat((scores[ids].unsqueeze(1), boxes[ids]), 1)
         return output
 
 

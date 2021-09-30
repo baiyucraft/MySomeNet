@@ -10,7 +10,12 @@ class SSD(nn.Module):
     Args:
         mode: train or test
         net: all net
-
+        loc_layers: 框的位置偏置预测
+        conf_layers: 框的类别预测
+        feature_maps: 输出的特征图
+        num_classes: 预测的类别 + 1
+        confidence: 类别的置信阈值
+        nms_iou: 框交并比的阈值
     """
 
     def __init__(self, mode, net, loc_layers, conf_layers, feature_maps, num_classes, confidence, nms_iou):
@@ -20,6 +25,7 @@ class SSD(nn.Module):
         self.loc = loc_layers
         self.conf = conf_layers
 
+        # 类似L2正则化，trick
         self.L2Norm = L2Norm(512, 20)
 
         # 模式
@@ -29,7 +35,7 @@ class SSD(nn.Module):
             self.detect = Detect(num_classes, 0, 200, confidence, nms_iou)
 
         self.cfg = Config
-        # 生成锚框 8732
+        # 生成锚框
         self.priorbox = PriorBox(feature_maps, self.cfg)
         with torch.no_grad():
             self.priors = self.priorbox.forward()
@@ -150,8 +156,8 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
     Args:
         mode: train or test
         num_classes: 识别种类
-        confidence:
-        nms_iou:
+        confidence: 类别的置信阈值
+        nms_iou: 框交并比的阈值
     """
     # 主干网络和额外网络
     layers = get_bone_extras(3)
