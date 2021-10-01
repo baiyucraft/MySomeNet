@@ -60,7 +60,7 @@ class Detect(nn.Module):
             # 查看针对每个类 在 所有框中的 置信分数
             for cl in range(1, self.num_classes):
                 # 与 conf_thresh 比较，大于则为True，小于等于为False
-                c_mask = conf_scores[cl].gt(self.conf_thresh)
+                c_mask = conf_scores[cl] > self.conf_thresh
                 scores = conf_scores[cl][c_mask]
                 # 如果没有满足要求的，则进入下一个类
                 if not scores.shape[0]:

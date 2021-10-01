@@ -14,31 +14,17 @@ class MultiBoxLoss(nn.Module):
     """
     Args:
         num_classes: 种类
-        overlap_thresh:
-        prior_for_matching:
-        bkg_label:
-        neg_mining:
-        neg_pos:
-        neg_overlap:
-        encode_target:
-        use_gpu:
-        negatives_for_hard:
+        overlap_thresh: iou的阈值
+        neg_pos: 负样本与正样本个数的比例
+        device: cpu or gpu
     """
 
-    def __init__(self, num_classes, overlap_thresh, prior_for_matching, bkg_label, neg_mining, neg_pos, neg_overlap,
-                 encode_target, negatives_for_hard=100.0, device='cpu'):
+    def __init__(self, num_classes, overlap_thresh, neg_pos=3.0, device='cpu'):
         super(MultiBoxLoss, self).__init__()
-        self.device = device
-
         self.num_classes = num_classes
         self.threshold = overlap_thresh
-        self.background_label = bkg_label
-        self.encode_target = encode_target
-        self.use_prior_for_matching = prior_for_matching
-        self.do_neg_mining = neg_mining
-        self.negpos_ratio = neg_pos
-        self.neg_overlap = neg_overlap
-        self.negatives_for_hard = negatives_for_hard
+        self.neg_pos_ratio = neg_pos
+        self.device = device
         self.variance = Config['variance']
 
     def forward(self, predictions, targets):
@@ -58,82 +44,60 @@ class MultiBoxLoss(nn.Module):
         priors = priors.to(self.device)
 
         for i in range(batch_size):
+            if not len(targets[i]):
+                continue
             # 真实框
             truths = targets[i][:, :-1]
             # 标签
             labels = targets[i][:, -1]
-
-            if not len(truths):
-                continue
-
+            # 默认锚框
             defaults = priors
-            # 匹配
+            # 匹配，得到位置便宜置信和类别置信
             loc_t[i], conf_t[i] = match(self.threshold, truths, defaults, self.variance, labels)
 
-        return
-
-        # 所有conf_t>0的地方，代表内部包含物体
+        # 所有conf_t>0的地方，代表内部包含物体，batch_size * num_priors
         pos = conf_t > 0
+        # 取出所有的正样本
+        loc_p = loc_data[pos]
+        loc_t = loc_t[pos]
+        # 计算正样本损失，近端二次，远端一次
+        loss_l = F.smooth_l1_loss(loc_p, loc_t, reduction='sum')
 
-        # --------------------------------------------------#
-        #   求和得到每一个图片内部有多少正样本
-        #   num_pos  (num, )
-        # --------------------------------------------------#
-        num_pos = pos.sum(dim=1, keepdim=True)
-
-        # --------------------------------------------------#
-        #   取出所有的正样本，并计算loss
-        #   pos_idx (num, num_priors, 4)
-        # --------------------------------------------------#
-        pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
-        loc_p = loc_data[pos_idx].view(-1, 4)
-        loc_t = loc_t[pos_idx].view(-1, 4)
-
-        loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
-        # --------------------------------------------------#
-        #   batch_conf  (num * num_priors, num_classes)
-        #   loss_c      (num, num_priors)
-        # --------------------------------------------------#
-        batch_conf = conf_data.view(-1, self.num_classes)
-        # 这个地方是在寻找难分类的先验框
-        loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
-        loss_c = loss_c.view(num, -1)
-
-        # 难分类的先验框不把正样本考虑进去，只考虑难分类的负样本
-        loss_c[pos] = 0
-        # --------------------------------------------------#
-        #   loss_idx    (num, num_priors)
-        #   idx_rank    (num, num_priors)
-        # --------------------------------------------------#
-        _, loss_idx = loss_c.sort(1, descending=True)
+        # (batch_size * num_priors) * num_classes
+        batch_conf = conf_data.reshape(-1, self.num_classes)
+        # 难分类(hard Negative Mining)的锚框, -log(softmax)
+        conf_log_p = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
+        conf_log_p = conf_log_p.reshape(batch_size, -1)
+        # 只考虑负样本
+        conf_log_p[pos] = 0
+        # loss_c 降序排列 得到loss_idx下标
+        _, loss_idx = conf_log_p.sort(1, descending=True)
+        # 得到 loss_c 的元素 在降序排列中的下标，batch_size * num_priors
         _, idx_rank = loss_idx.sort(1)
-        # --------------------------------------------------#
-        #   求和得到每一个图片内部有多少正样本
-        #   num_pos     (num, )
-        #   neg         (num, num_priors)
-        # --------------------------------------------------#
-        num_pos = pos.long().sum(1, keepdim=True)
-        # 限制负样本数量
-        num_neg = torch.clamp(self.negpos_ratio * num_pos, max=pos.size(1) - 1)
-        num_neg[num_neg.eq(0)] = self.negatives_for_hard
-        neg = idx_rank < num_neg.expand_as(idx_rank)
 
-        # --------------------------------------------------#
-        #   求和得到每一个图片内部有多少正样本
-        #   pos_idx   (num, num_priors, num_classes)
-        #   neg_idx   (num, num_priors, num_classes)
-        # --------------------------------------------------#
+        # 计算正样本数
+        num_pos = pos.sum(1, keepdim=True)
+        # 限制负样本数量, 值最大为: 锚框数 - 1
+        num_neg = (self.neg_pos_ratio * num_pos).clamp(max=num_priors - 1)
+        # (batch_size * num_priors) < (batch_size * 1)
+        neg = idx_rank < num_neg
+
+        # batch_size * num_priors  =>  batch_size * num_priors * num_classes
         pos_idx = pos.unsqueeze(2).expand_as(conf_data)
         neg_idx = neg.unsqueeze(2).expand_as(conf_data)
 
-        # 选取出用于训练的正样本与负样本，计算loss
-        conf_p = conf_data[(pos_idx + neg_idx).gt(0)].view(-1, self.num_classes)
-        targets_weighted = conf_t[(pos + neg).gt(0)]
-        loss_c = F.cross_entropy(conf_p, targets_weighted, size_average=False)
+        # 选取出用于训练的正样本与负样本，计算loss n * num_classes
+        conf_p = conf_data[pos_idx + neg_idx].reshape(-1, self.num_classes)
+        # 真实值 [n]
+        truth_p = conf_t[pos + neg]
+        # 交叉熵
+        loss_c = F.cross_entropy(conf_p, truth_p, reduction='sum')
 
-        N = torch.max(num_pos.data.sum(), torch.ones_like(num_pos.data.sum()))
+        # 正样本个数
+        N = num_pos.sum().float()
         loss_l /= N
         loss_c /= N
+
         return loss_l, loss_c
 
 
@@ -188,23 +152,20 @@ class LossHistory:
         plt.savefig(os.path.join(self.save_path, "epoch_loss_" + str(self.time_str) + ".png"))
 
 
-def weights_init(net, init_type='normal', init_gain=0.02):
+def weights_init(net, init_type='normal', init_gain=0.01):
+    """权重初始化"""
+
     def init_func(m):
-        classname = m.__class__.__name__
-        if hasattr(m, 'weight') and classname.find('Conv') != -1:
+        # 卷积层权重
+        if m.__class__.__name__ == 'Conv2d':
             if init_type == 'normal':
                 torch.nn.init.normal_(m.weight.data, 0.0, init_gain)
             elif init_type == 'xavier':
                 torch.nn.init.xavier_normal_(m.weight.data, gain=init_gain)
-            elif init_type == 'kaiming':
-                torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
-            elif init_type == 'orthogonal':
-                torch.nn.init.orthogonal_(m.weight.data, gain=init_gain)
-            else:
-                raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
-        elif classname.find('BatchNorm2d') != -1:
+        # 归一层
+        elif m.__class__.__name__ == 'BatchNorm2d':
             torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
             torch.nn.init.constant_(m.bias.data, 0.0)
 
-    print('initialize network with %s type' % init_type)
+    print(f'initialize network with {init_type} type')
     net.apply(init_func)

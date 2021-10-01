@@ -118,6 +118,13 @@ def fit_one_epoch(net, criterion, epoch, epoch_size, epoch_size_val, gen, genval
     return val_loss / (epoch_size_val + 1)
 
 
+def tes_xy():
+    x = torch.randn(size=(2, 3, 300, 300))
+    targets = torch.Tensor([[[0.1, 0.1, 0.2, 0.2, 2], [0.1, 0.1, 0.2, 0.2, 2]],
+                            [[0.2, 0.2, 0.3, 0.3, 5], [0.2, 0.2, 0.3, 0.3, 5]]])
+    return x, targets
+
+
 # ----------------------------------------------------#
 #   检测精度mAP和pr曲线计算参考视频
 #   https://www.bilibili.com/video/BV1zE411u7Vw
@@ -125,21 +132,22 @@ def fit_one_epoch(net, criterion, epoch, epoch_size, epoch_size_val, gen, genval
 if __name__ == "__main__":
     Cuda = True
     device = try_gpu()
-    model = get_ssd("train", Config["num_classes"])
-    x = torch.randn(size=(2, 3, 300, 300))
-    output = model(x)
+    # 主干网络权重
+    bone_net_path = "model_data/vgg.pth"
+    # torch.save(net.state_dict(), 'mlp.params')
+    # net.load_state_dict(torch.load('mlp.params'))
 
-    loss = MultiBoxLoss(Config['num_classes'], 0.5, True, 0, True, 3, 0.5, False)
-    targets = torch.Tensor([[[0.1, 0.1, 0.2, 0.2, 2], [0.1, 0.1, 0.2, 0.2, 2]],
-                            [[0.2, 0.2, 0.3, 0.3, 5], [0.2, 0.2, 0.3, 0.3, 5]]])
-    loss(output, targets)
-    # -------------------------------#
-    #   是否使用Cuda
-    #   没有GPU可以设置成False
-    # -------------------------------#
+    model = get_ssd("train", Config["num_classes"])
+
+    weights_init(model)
+
+    # loss = MultiBoxLoss(Config['num_classes'], 0.5, True)
+
+    # X, y = tes_xy()
+    # output = model(X)
+    # print(loss(output, y))
 
     """
-    weights_init(model)
     # ------------------------------------------------------#
     #   权值文件请看README，百度网盘下载
     # ------------------------------------------------------#

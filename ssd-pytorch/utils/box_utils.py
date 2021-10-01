@@ -85,7 +85,7 @@ def match(threshold, truths, priors, variances, labels):
 
 def encode(matches, priors, variances):
     """
-    计算c_box
+    计算loc(c_box)
     具体计算:
         loc_x = (b_center_x - p_center_x) / (p_width * v)
         loc_y = (b_center_y - p_center_y) / (p_height * v)
@@ -119,17 +119,11 @@ def decode(loc, priors, variances):
     return c_box_to_b_box(boxes)
 
 
-def log_sum_exp(x):
-    x_max = x.data.max()
-    return torch.log(torch.sum(torch.exp(x - x_max), 1, keepdim=True)) + x_max
-
-
 def nms(boxes, scores, overlap=0.5, top_k=200):
     """
     非极大抑制，筛选出一定区域内得分最大的框
     Return: 保留的 下标 以及 个数
     """
-
     x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
     # 面积
     area = (x2 - x1) * (y2 - y1)
@@ -161,8 +155,13 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         union = (rem_areas - inter) + area[i]
         iou = inter / union
         # 迭代 小于等于 阈值的 idx
-        idx = idx[iou.le(overlap)]
+        idx = idx[iou <= overlap]
     return torch.Tensor(keep).long(), count
+
+
+def log_sum_exp(x):
+    x_max = x.data.max()
+    return torch.log(torch.sum(torch.exp(x - x_max), 1, keepdim=True)) + x_max
 
 
 def letterbox_image(image, size):
