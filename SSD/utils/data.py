@@ -28,7 +28,7 @@ class SSDDataset(Dataset):
 
     def get_random_data(self, annotation_line, input_shape, jitter=.3, hue=.1, sat=1.5, val=1.5, random=True):
         """
-实时数据增强的随机预处理
+# 实时数据增强的随机预处理
 """
         line = annotation_line.split()
         image = Image.open(line[0])
@@ -160,7 +160,7 @@ def ssd_dataset_collate(batch):
 """
 
 
-def deal_target(key):
+def deal_target(key, p=10):
     """对 xml 的 dic 进行处理"""
     ann = key['annotation']
     img_path = ann['filename']
@@ -177,9 +177,9 @@ def deal_target(key):
         boxes.append([x1, y1, x2, y2, Classes.index(cls)])
         # boxes.append([x1, y1, x2, y2, Classes.index(cls) + 1])
     # 扩充
-    while len(boxes) < 10:
+    while len(boxes) < p:
         boxes *= 2
-    return torch.Tensor(boxes[:10])
+    return torch.Tensor(boxes[:p])
 
 
 def get_voc_iter(path, batch_size, resize):

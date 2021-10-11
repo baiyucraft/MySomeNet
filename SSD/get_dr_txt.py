@@ -13,10 +13,10 @@ from PIL import Image
 from tqdm import tqdm
 
 from nets.ssd import get_ssd
-from ssd import SSD
-from utils.box_utils import letterbox_image, ssd_correct_boxes
-
-MEANS = (104, 117, 123)
+from nets.ssd_training import weights_init
+from predict_ssd import SSD
+# from utils.utils import letterbox_image, ssd_correct_boxes
+from utils.utils import try_gpu
 
 '''
 这里设置的门限值较低是因为计算map需要用到不同门限条件下的Recall和Precision值。
@@ -34,33 +34,15 @@ MEANS = (104, 117, 123)
 class mAP_SSD(SSD):
     def generate(self):
         self.confidence = 0.01
-        # -------------------------------#
-        #   计算总的类的数量
-        # -------------------------------#
-        self.num_classes = len(self.class_names) + 1
 
-        # -------------------------------#
-        #   载入模型与权值
-        # -------------------------------#
-        model = get_ssd("test", self.num_classes, self.backbone, self.confidence, self.nms_iou)
-        print('Loading weights into state dict...')
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model.load_state_dict(torch.load(self.model_path, map_location=device))
-        self.net = model.eval()
+        net = get_ssd("test", self.num_classes, self.confidence, self.nms_iou)
+        weights_init(net, path='model_data/net.params')
+        self.net = net.eval()
+        self.net = self.net.to(try_gpu())
 
-        if self.cuda:
-            self.net = torch.nn.DataParallel(self.net)
-            cudnn.benchmark = True
-            self.net = self.net.cuda()
-
-        print('{} model, anchors, and classes loaded.'.format(self.model_path))
         # 画框设置不同的颜色
-        hsv_tuples = [(x / len(self.class_names), 1., 1.)
-                      for x in range(len(self.class_names))]
+        hsv_tuples = [(x / len(self.class_names), 1., 1.) for x in range(len(self.class_names))]
         self.colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
-        self.colors = list(
-            map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)),
-                self.colors))
 
     # ---------------------------------------------------#
     #   检测图片
@@ -129,7 +111,7 @@ class mAP_SSD(SSD):
 
             top, left, bottom, right = boxes[i]
             f.write("%s %s %s %s %s %s\n" % (
-            predicted_class, score[:6], str(int(left)), str(int(top)), str(int(right)), str(int(bottom))))
+                predicted_class, score[:6], str(int(left)), str(int(top)), str(int(right)), str(int(bottom))))
 
         f.close()
         return
