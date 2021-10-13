@@ -1,3 +1,4 @@
+import os
 import time
 
 import numpy as np
@@ -180,10 +181,44 @@ def gray_to_rgb(img):
     return img.convert('RGB')
 
 
-def load_caltech_256(batch_size=8, shape=(224, 224)):
+def load_mnist(batch_size=8, shape=(224, 224)):
+    """MNIST"""
+    trans = transforms.Compose([gray_to_rgb,
+                                transforms.Resize(shape),
+                                transforms.ToTensor()])
+    train_data = torchvision.datasets.MNIST(root="../dataset", train=True, transform=trans, download=False)
+    test_data = torchvision.datasets.MNIST(root="../dataset", train=False, transform=trans, download=False)
+    return (data.DataLoader(train_data, batch_size, shuffle=True, num_workers=2),
+            data.DataLoader(test_data, batch_size, shuffle=False, num_workers=2))
+
+
+def load_cifar_10(batch_size=8, shape=(224, 224)):
+    """CIFAR-10"""
     trans = transforms.Compose([transforms.Resize(shape),
-                                gray_to_rgb,
                                 transforms.ToTensor(),
+                                transforms.RandomHorizontalFlip(p=0.5),  # 随机水平翻转
+                                transforms.RandomVerticalFlip(p=0.5),  # 垂直
+                                transforms.RandomRotation(degrees=180),  # 旋转
+                                transforms.ColorJitter(brightness=0.5, contrast=0.5),  # 对比度和饱和度
+                                transforms.Normalize(mean=[0.229, 0.224, 0.225], std=[0.485, 0.456, 0.406])])
+    train_data = torchvision.datasets.CIFAR10(root="../dataset", train=True, transform=trans, download=False)
+    test_data = torchvision.datasets.CIFAR10(root="../dataset", train=False, transform=trans, download=False)
+    return (data.DataLoader(train_data, batch_size, shuffle=True, num_workers=2),
+            data.DataLoader(test_data, batch_size, shuffle=False, num_workers=2))
+
+
+def load_caltech_256(batch_size=8, shape=(224, 224)):
+    """CALTECH-256"""
+    trans_test = transforms.Compose([gray_to_rgb,
+                                     transforms.Resize(shape),
+                                     transforms.ToTensor()])
+    trans = transforms.Compose([gray_to_rgb,
+                                transforms.Resize(shape),
+                                transforms.ToTensor(),
+                                transforms.RandomHorizontalFlip(p=0.5),  # 随机水平翻转
+                                transforms.RandomVerticalFlip(p=0.5),  # 垂直
+                                transforms.RandomRotation(degrees=180),  # 旋转
+                                transforms.ColorJitter(brightness=0.5, contrast=0.5),  # 对比度和饱和度
                                 transforms.Normalize(mean=[0.229, 0.224, 0.225], std=[0.485, 0.456, 0.406])])
 
     train_data = torchvision.datasets.Caltech256(root="../dataset", transform=trans, download=False)
@@ -197,9 +232,9 @@ def get_caltech_256_label(key):
     return [class_name[k] for k in key]
 
 
-def get_out_layer(net, x):
+def get_out_layer(net, in_channels, shape):
     """得到展平"""
-    shape = net(x).shape[-2:]
+    shape = net(torch.randn(size=(1, in_channels, shape[0], shape[1]))).shape[-2:]
     return shape[0] * shape[1]
 
 
@@ -207,6 +242,13 @@ def test_net(net, shape):
     """测试输出"""
     x = torch.randn(size=(1, 3, shape[0], shape[1]))
     print(net(x).shape)
+
+
+def load_net_param(net, path):
+    """加载训练的模型"""
+    if os.path.exists(path):
+        net.load_state_dict(torch.load(path))
+        print('load model param')
 
 
 def train_epoch(net, iter, loss, optimizer, device, mode='train'):
@@ -235,10 +277,10 @@ def train_epoch(net, iter, loss, optimizer, device, mode='train'):
     return epoch_loss, epoch_acc
 
 
-def train(net, train_iter, valid_iter, num_epochs, learning_rate, weight_decay, device, path):
+def train(net, train_iter, valid_iter, num_epochs, learning_rate, weight_decay, device, path, save=True):
     net.to(device)
     loss = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=0.9)
     optimizer_adjust = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
 
     # best_acc = 0.0
@@ -267,12 +309,14 @@ def train(net, train_iter, valid_iter, num_epochs, learning_rate, weight_decay, 
         # animator.add(epoch + 1, (train_loss, train_acc, valid_loss, valid_acc))
         animator.add(epoch + 1, (train_loss, train_acc))
 
+        # save
         # if valid_acc > best_acc:
         #     best_acc = valid_acc
         #     torch.save(net.state_dict(), path)
         #     print(f'saving model with acc {best_acc:.3f}')
-        torch.save(net.state_dict(), path)
-        print(f'saving model with acc {train_acc:.3f}')
+        if save:
+            torch.save(net.state_dict(), path)
+            print(f'saving model with acc {train_acc:.3f}')
 
     plt.show()
     print(f'all: {timer.sum():.3f}')

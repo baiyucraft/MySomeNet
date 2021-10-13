@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-
 from Tools.utils import get_out_layer
 
 
@@ -9,7 +7,8 @@ class AlexNet(nn.Module):
         super().__init__()
         self.name = 'AlexNet'
 
-        self.conv1 = nn.Sequential(nn.Conv2d(3, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(),
+        in_channels = 3
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
         self.conv2 = nn.Sequential(nn.Conv2d(96, 256, kernel_size=5, padding=2), nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
@@ -18,18 +17,15 @@ class AlexNet(nn.Module):
                                    nn.Conv2d(384, 256, kernel_size=3, padding=1), nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
 
-        temp = torch.randn(size=(1, 3, shape[0], shape[1]))
-        out = get_out_layer(nn.Sequential(self.conv1, self.conv2, self.conv3), temp)
+        out = get_out_layer(nn.Sequential(self.conv1, self.conv2, self.conv3), in_channels, shape)
 
-        self.all_liner = nn.Sequential(nn.Flatten(),
-                                       nn.Linear(256 * out, 4096), nn.ReLU(),
-                                       nn.Dropout(p=0.5),
-                                       nn.Linear(4096, 4096), nn.ReLU(),
-                                       nn.Dropout(p=0.5),
-                                       nn.Linear(4096, classes))
+        self.fc = nn.Sequential(nn.Flatten(),
+                                nn.Linear(256 * out, 4096), nn.ReLU(), nn.Dropout(p=0.5),
+                                nn.Linear(4096, 4096), nn.ReLU(), nn.Dropout(p=0.5),
+                                nn.Linear(4096, classes))
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        return self.all_liner(x)
+        return self.fc(x)
