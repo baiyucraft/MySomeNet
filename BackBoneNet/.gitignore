@@ -5,3 +5,4 @@
 /img/
 /model_data/
 /VOCdevkit/
+*.pth
