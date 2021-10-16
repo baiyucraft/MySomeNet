@@ -8,20 +8,20 @@ class AlexNet(nn.Module):
         self.name = 'AlexNet'
 
         in_channels = 3
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(),
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
-        self.conv2 = nn.Sequential(nn.Conv2d(96, 256, kernel_size=5, padding=2), nn.ReLU(),
+        self.conv2 = nn.Sequential(nn.Conv2d(96, 256, kernel_size=5, padding=2), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
-        self.conv3 = nn.Sequential(nn.Conv2d(256, 384, kernel_size=3, padding=1), nn.ReLU(),
-                                   nn.Conv2d(384, 384, kernel_size=3, padding=1), nn.ReLU(),
-                                   nn.Conv2d(384, 256, kernel_size=3, padding=1), nn.ReLU(),
+        self.conv3 = nn.Sequential(nn.Conv2d(256, 384, kernel_size=3, padding=1), nn.ReLU(inplace=True),
+                                   nn.Conv2d(384, 384, kernel_size=3, padding=1), nn.ReLU(inplace=True),
+                                   nn.Conv2d(384, 256, kernel_size=3, padding=1), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
 
         out = get_out_layer(nn.Sequential(self.conv1, self.conv2, self.conv3), in_channels, shape)
 
         self.fc = nn.Sequential(nn.Flatten(),
-                                nn.Linear(256 * out, 4096), nn.ReLU(), nn.Dropout(p=0.5),
-                                nn.Linear(4096, 4096), nn.ReLU(), nn.Dropout(p=0.5),
+                                nn.Linear(256 * out, 4096), nn.ReLU(inplace=True), nn.Dropout(p=0.5),
+                                nn.Linear(4096, 4096), nn.ReLU(inplace=True), nn.Dropout(p=0.5),
                                 nn.Linear(4096, classes))
 
     def forward(self, x):

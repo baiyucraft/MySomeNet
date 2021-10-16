@@ -244,11 +244,24 @@ def test_net(net, shape):
     print(net(x).shape)
 
 
+def weight_init(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_normal_(m.weight)
+        nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+    elif isinstance(m, nn.BatchNorm2d):
+        nn.init.constant_(m.weight, 1)
+        nn.init.constant_(m.bias, 0)
+
+
 def load_net_param(net, path):
     """加载训练的模型"""
     if os.path.exists(path):
         net.load_state_dict(torch.load(path))
         print('load model param')
+    else:
+        net.apply(weight_init)
 
 
 def train_epoch(net, iter, loss, optimizer, device, mode='train'):

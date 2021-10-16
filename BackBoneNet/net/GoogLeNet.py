@@ -2,20 +2,21 @@ import torch
 from torch import nn
 
 
+# https://arxiv.org/abs/1409.4842
 class Inception(nn.Module):
     def __init__(self, in_channels, c1, c13, c15, c31):
         super(Inception, self).__init__()
         # branch1，1x1 conv
-        self.branch1 = nn.Sequential(nn.Conv2d(in_channels, c1, kernel_size=1), nn.ReLU())
+        self.branch1 = nn.Sequential(nn.Conv2d(in_channels, c1, kernel_size=1), nn.ReLU(inplace=True))
         # branch2，1x1 conv + 3x3 conv
-        self.branch2 = nn.Sequential(nn.Conv2d(in_channels, c13[0], kernel_size=1), nn.ReLU(),
-                                     nn.Conv2d(c13[0], c13[1], kernel_size=3, padding=1), nn.ReLU())
+        self.branch2 = nn.Sequential(nn.Conv2d(in_channels, c13[0], kernel_size=1), nn.ReLU(inplace=True),
+                                     nn.Conv2d(c13[0], c13[1], kernel_size=3, padding=1), nn.ReLU(inplace=True))
         # branch3，1x1 conv + 5x5 conv
-        self.branch3 = nn.Sequential(nn.Conv2d(in_channels, c15[0], kernel_size=1), nn.ReLU(),
-                                     nn.Conv2d(c15[0], c15[1], kernel_size=5, padding=2), nn.ReLU())
+        self.branch3 = nn.Sequential(nn.Conv2d(in_channels, c15[0], kernel_size=1), nn.ReLU(inplace=True),
+                                     nn.Conv2d(c15[0], c15[1], kernel_size=5, padding=2), nn.ReLU(inplace=True))
         # branch5，3x3 max_pool + 1x1 conv
         self.branch4 = nn.Sequential(nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
-                                     nn.Conv2d(in_channels, c31, kernel_size=1), nn.ReLU())
+                                     nn.Conv2d(in_channels, c31, kernel_size=1), nn.ReLU(inplace=True))
 
     def forward(self, x):
         branch1 = self.branch1(x)

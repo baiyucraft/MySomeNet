@@ -1,6 +1,7 @@
 from torch import nn
 from Tools.utils import get_out_layer
 
+# https://arxiv.org/abs/1409.1556
 vgg_16_layer = [(2, 64), (2, 128), (3, 256), (3, 512), (3, 512)]
 vgg_19_layer = [(2, 64), (2, 128), (4, 256), (4, 512), (4, 512)]
 
@@ -28,8 +29,9 @@ class VGG(nn.Module):
         out = get_out_layer(nn.Sequential(*[getattr(self, f'conv{i}') for i in range(len(self.layer_list))]), 3, shape)
 
         self.fc = nn.Sequential(nn.Flatten(),
-                                nn.Linear(self.layer_list[-1][-1] * out, 4096), nn.ReLU(), nn.Dropout(p=0.5),
-                                nn.Linear(4096, 4096), nn.ReLU(), nn.Dropout(p=0.5),
+                                nn.Linear(self.layer_list[-1][-1] * out, 4096), nn.ReLU(inplace=True),
+                                nn.Dropout(p=0.5),
+                                nn.Linear(4096, 4096), nn.ReLU(inplace=True), nn.Dropout(p=0.5),
                                 nn.Linear(4096, classes))
 
     def forward(self, x):
