@@ -1,5 +1,5 @@
 from Tools.utils import *
-from net import AlexNet, VGG, GoogLeNet, NiN, InceptionV23, ResNet
+from net import *
 from torchvision import models
 
 # import ssl
@@ -19,7 +19,9 @@ if __name__ == '__main__':
     # net = NiN(10)
     # net = GoogLeNet(10)
     # net = InceptionV23(257)
-    net = ResNet(257)
+    # net = ResNet(257)
+    # net = InceptionV4(257)
+    net = InceptionRes(257, mode='V2')
     net_path = f'model_data/{net.name}.pth'
     load_net_param(net, net_path)
     # test_net(net, image_shape)

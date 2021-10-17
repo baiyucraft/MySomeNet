@@ -32,8 +32,7 @@ class GoogLeNet(nn.Module):
         super(GoogLeNet, self).__init__()
         self.name = 'GoogLeNet'
 
-        in_channels = 3
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3), nn.ReLU(),
+        self.conv1 = nn.Sequential(nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3), nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
 
         self.conv2 = nn.Sequential(nn.Conv2d(64, 64, kernel_size=1), nn.ReLU(),

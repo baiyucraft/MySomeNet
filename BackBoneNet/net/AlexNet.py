@@ -7,8 +7,7 @@ class AlexNet(nn.Module):
         super().__init__()
         self.name = 'AlexNet'
 
-        in_channels = 3
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(inplace=True),
+        self.conv1 = nn.Sequential(nn.Conv2d(3, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
         self.conv2 = nn.Sequential(nn.Conv2d(96, 256, kernel_size=5, padding=2), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))

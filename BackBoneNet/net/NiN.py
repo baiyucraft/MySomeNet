@@ -14,8 +14,7 @@ class NiN(nn.Module):
         super(NiN, self).__init__()
         self.name = 'NiN'
 
-        in_channels = 3
-        self.n1 = nn.Sequential(nin_block(in_channels, 96, kernel_size=11, strides=4, padding=0),
+        self.n1 = nn.Sequential(nin_block(3, 96, kernel_size=11, strides=4, padding=0),
                                 nn.MaxPool2d(3, stride=2))
         self.n2 = nn.Sequential(nin_block(96, 256, kernel_size=5, strides=1, padding=2),
                                 nn.MaxPool2d(3, stride=2))

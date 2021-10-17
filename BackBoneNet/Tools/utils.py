@@ -259,7 +259,7 @@ def load_net_param(net, path):
     """加载训练的模型"""
     if os.path.exists(path):
         net.load_state_dict(torch.load(path))
-        print('load model param')
+        print(f'load model param with {net.name}.pth')
     else:
         net.apply(weight_init)
 

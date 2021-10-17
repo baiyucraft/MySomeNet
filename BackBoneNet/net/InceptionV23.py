@@ -158,8 +158,7 @@ class InceptionV23(nn.Module):
         super(InceptionV23, self).__init__()
         self.name = 'InceptionV23'
 
-        in_channels = 3
-        self.conv1 = nn.Sequential(BaseConv(in_channels, 32, kernel_size=3, stride=2),
+        self.conv1 = nn.Sequential(BaseConv(3, 32, kernel_size=3, stride=2),
                                    BaseConv(32, 32, kernel_size=3, stride=1),
                                    BaseConv(32, 64, kernel_size=3, stride=1, padding=1),
                                    nn.MaxPool2d(kernel_size=3, stride=2))

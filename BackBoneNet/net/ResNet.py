@@ -67,10 +67,9 @@ class ResNet(nn.Module):
         self.name = f'ResNet{mode}'
         self.block, self.layers = globals()[f'resnet_{mode}']
 
-        in_channels = 3
         self.in_channels = 64
         self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.Conv2d(3, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False),
             nn.BatchNorm2d(self.in_channels), nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
 
