@@ -7,3 +7,4 @@ from net.ResNet import ResNet
 from net.InceptionV4 import InceptionV4, InceptionRes
 from net.DenseNet import DenseNet
 from net.MobileNet import MobileNet
+from net.MobileNetV2 import MobileNetV2
