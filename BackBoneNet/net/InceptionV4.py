@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 
-#
+
+# https://arxiv.org/abs/1602.07261
 # V为不填充padding
-from Tools.utils import test_net
 
 
 class BaseConv(nn.Module):

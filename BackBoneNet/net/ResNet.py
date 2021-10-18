@@ -54,18 +54,18 @@ class Bottleneck(nn.Module):
 
 
 # 参数
-resnet_18 = (BasicBlock, [2, 2, 2, 2])
-resnet_34 = (BasicBlock, [3, 4, 6, 3])
-resnet_50 = (Bottleneck, [3, 4, 6, 3])
-resnet_101 = (Bottleneck, [3, 4, 23, 3])
-resnet_152 = (Bottleneck, [3, 8, 36, 3])
+config = {'resnet_18': (BasicBlock, [2, 2, 2, 2]),
+          'resnet_34': (BasicBlock, [3, 4, 6, 3]),
+          'resnet_50': (Bottleneck, [3, 4, 6, 3]),
+          'resnet_101': (Bottleneck, [3, 4, 23, 3]),
+          'resnet_152': (Bottleneck, [3, 8, 36, 3])}
 
 
 class ResNet(nn.Module):
     def __init__(self, classes, mode=50):
         super(ResNet, self).__init__()
         self.name = f'ResNet{mode}'
-        self.block, self.layers = globals()[f'resnet_{mode}']
+        self.block, self.layers = config[f'resnet_{mode}']
 
         self.in_channels = 64
         self.conv1 = nn.Sequential(

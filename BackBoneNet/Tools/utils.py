@@ -262,6 +262,7 @@ def load_net_param(net, path):
         print(f'load model param with {net.name}.pth')
     else:
         net.apply(weight_init)
+        print(f'init param')
 
 
 def train_epoch(net, iter, loss, optimizer, device, mode='train'):
@@ -333,3 +334,16 @@ def train(net, train_iter, valid_iter, num_epochs, learning_rate, weight_decay, 
 
     plt.show()
     print(f'all: {timer.sum():.3f}')
+
+
+def pred(net, valid_iter, device):
+    net.to(device)
+    net.eval()
+
+    X, y = next(iter(valid_iter))
+    y_pred = net(X).argmax(dim=-1)
+
+    s = []
+    for i, j in zip(get_caltech_256_label(y_pred.tolist()), get_caltech_256_label(y.tolist())):
+        s.append(f'{i} = {j}')
+    show_images(X, 4, 4, s, scale=5)
