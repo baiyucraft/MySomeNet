@@ -6,3 +6,4 @@ from net.InceptionV23 import InceptionV23
 from net.ResNet import ResNet
 from net.InceptionV4 import InceptionV4, InceptionRes
 from net.DenseNet import DenseNet
+from net.MobileNet import MobileNet
