@@ -16,7 +16,7 @@ class AlexNet(nn.Module):
                                    nn.Conv2d(384, 256, kernel_size=3, padding=1), nn.ReLU(inplace=True),
                                    nn.MaxPool2d(kernel_size=3, stride=2))
 
-        out = get_out_layer(nn.Sequential(self.conv1, self.conv2, self.conv3), in_channels, shape)
+        out = get_out_layer(nn.Sequential(self.conv1, self.conv2, self.conv3), 3, shape)
 
         self.fc = nn.Sequential(nn.Flatten(),
                                 nn.Linear(256 * out, 4096), nn.ReLU(inplace=True), nn.Dropout(p=0.5),
