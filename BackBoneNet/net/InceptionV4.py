@@ -357,7 +357,7 @@ class InceptionV4(nn.Module):
 
         self.inception3 = nn.Sequential(*[InceptionC()] * 3)
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(), nn.Dropout(0.8),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Dropout(0.8),
                                 nn.Linear(1536, classes))
 
     def forward(self, x):
@@ -386,7 +386,7 @@ class InceptionRes(nn.Module):
 
         self.inception3 = nn.Sequential(*[InceptionResC(layer[2], mode)] * 5)
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(), nn.Dropout(0.8),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Dropout(0.8),
                                 nn.Linear(layer[2], classes))
 
     def forward(self, x):

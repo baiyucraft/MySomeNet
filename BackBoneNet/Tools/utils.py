@@ -240,7 +240,7 @@ def get_out_layer(net, in_channels, shape):
 
 def test_net(net, shape):
     """测试输出"""
-    x = torch.randn(size=(1, 3, shape[0], shape[1]))
+    x = torch.randn(size=(2, 3, shape[0], shape[1]))
     print(net(x).shape)
 
 

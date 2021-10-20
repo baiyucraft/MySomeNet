@@ -52,7 +52,7 @@ class GoogLeNet(nn.Module):
 
         self.inception5 = nn.Sequential(Inception(832, 256, (160, 320), (32, 128), 128),
                                         Inception(832, 384, (192, 384), (48, 128), 128),
-                                        nn.AdaptiveAvgPool2d((1, 1)))
+                                        nn.AdaptiveAvgPool2d(1))
 
         self.fc = nn.Sequential(nn.Flatten(), nn.Dropout(p=0.4),
                                 nn.Linear(1024, classes))

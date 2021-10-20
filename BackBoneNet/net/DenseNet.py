@@ -74,7 +74,7 @@ class DenseNet(nn.Module):
                 channels = channels // 2
 
         self.fc = nn.Sequential(nn.BatchNorm2d(channels), nn.ReLU(inplace=True),
-                                nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(),
+                                nn.AdaptiveAvgPool2d(1), nn.Flatten(),
                                 nn.Linear(channels, classes))
 
     def forward(self, x):

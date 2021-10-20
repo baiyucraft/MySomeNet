@@ -181,7 +181,7 @@ class InceptionV23(nn.Module):
                                         InceptionE(1280),
                                         InceptionE(2048))
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                 nn.Flatten(), nn.Dropout(),
                                 nn.Linear(2048, classes))
 

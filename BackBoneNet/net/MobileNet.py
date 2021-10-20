@@ -51,7 +51,7 @@ class MobileNet(nn.Module):
             self.conv.add_module(f'Dw{i + 1}', DWConv(channels, out, stride))
             channels = out
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                 nn.Flatten(), nn.Linear(1024, classes))
 
     def forward(self, x):

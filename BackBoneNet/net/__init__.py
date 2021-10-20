@@ -8,3 +8,4 @@ from net.InceptionV4 import InceptionV4, InceptionRes
 from net.DenseNet import DenseNet
 from net.MobileNet import MobileNet
 from net.MobileNetV2 import MobileNetV2
+from net.MobileNetV3 import MobileNetV3

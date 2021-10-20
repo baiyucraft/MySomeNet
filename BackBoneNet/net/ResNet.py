@@ -81,7 +81,7 @@ class ResNet(nn.Module):
 
         self.conv5 = self.get_layer(self.block, channels=512, num_blocks=self.layers[3], stride=2)
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                 nn.Flatten(),
                                 nn.Linear(512 * self.block.expansion, classes))
 

@@ -22,7 +22,7 @@ class NiN(nn.Module):
                                 nn.MaxPool2d(3, stride=2))
         self.n4 = nn.Sequential(nn.Dropout(0.5),
                                 nin_block(384, classes, kernel_size=3, strides=1, padding=1),
-                                nn.AdaptiveAvgPool2d((1, 1)),
+                                nn.AdaptiveAvgPool2d(1),
                                 nn.Flatten())
 
     def forward(self, x):

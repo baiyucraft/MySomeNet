@@ -76,7 +76,7 @@ class MobileNetV2(nn.Module):
 
         self.conv_last = BaseConv(input_channel, self.last_channel, kernel_size=1)
 
-        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+        self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1),
                                 nn.Flatten(), nn.Dropout(0.2),
                                 nn.Linear(self.last_channel, classes))
 
