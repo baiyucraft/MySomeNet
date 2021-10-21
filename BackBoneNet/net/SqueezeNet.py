@@ -3,6 +3,7 @@ from torch import nn
 from functools import partial
 
 
+# https://arxiv.org/abs/1602.07360
 class FireBlock(nn.Module):
     def __init__(self, in_channels, squeeze_channels, expand1_channels, expand2_channels):
         super(FireBlock, self).__init__()

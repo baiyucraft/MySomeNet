@@ -10,3 +10,4 @@ from net.MobileNet import MobileNet
 from net.MobileNetV2 import MobileNetV2
 from net.MobileNetV3 import MobileNetV3
 from net.SqueezeNet import SqueezeNet
+from net.ShuffleNet import ShuffleNet

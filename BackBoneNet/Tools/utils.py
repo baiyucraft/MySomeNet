@@ -222,8 +222,9 @@ def load_caltech_256(batch_size=8, shape=(224, 224)):
                                 transforms.Normalize(mean=[0.229, 0.224, 0.225], std=[0.485, 0.456, 0.406])])
 
     train_data = torchvision.datasets.Caltech256(root="../dataset", transform=trans, download=False)
+    test_data = torchvision.datasets.Caltech256(root="../dataset", transform=trans_test, download=False)
     return (data.DataLoader(train_data, batch_size, shuffle=True, num_workers=2),
-            data.DataLoader(train_data, batch_size, shuffle=False, num_workers=2))
+            data.DataLoader(test_data, batch_size, shuffle=True, num_workers=2))
 
 
 def get_caltech_256_label(key):

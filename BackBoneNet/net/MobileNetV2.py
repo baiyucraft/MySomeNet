@@ -1,6 +1,7 @@
 from torch import nn
 
 
+# https://arxiv.org/abs/1801.04381
 def make_divisible(channels, round_value=8, min_value=8):
     new_channels = max(min_value, int(channels + round_value / 2) // round_value * round_value)
     # Make sure that round down does not go down by more than 10%.

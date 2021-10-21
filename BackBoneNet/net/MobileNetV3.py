@@ -1,8 +1,7 @@
 from torch import nn
 
-from Tools.utils import test_net
 
-
+# https://arxiv.org/abs/1905.02244
 def make_divisible(channels, round_value=8, min_value=8):
     new_channels = max(min_value, int(channels + round_value / 2) // round_value * round_value)
     # Make sure that round down does not go down by more than 10%.
@@ -147,7 +146,3 @@ class MobileNetV3(nn.Module):
         x = self.conv_main(x)
         x = self.conv_last(x)
         return self.fc(x)
-
-
-if __name__ == '__main__':
-    test_net(MobileNetV3(10), (224, 224))
