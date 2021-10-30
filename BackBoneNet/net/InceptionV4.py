@@ -349,13 +349,13 @@ class InceptionV4(nn.Module):
 
         self.stem = InceptionStem()
 
-        self.inception1 = nn.Sequential(*[InceptionA()] * 4)
+        self.inception1 = nn.Sequential(*[InceptionA() for _ in range(4)])
         self.reduction1 = ReductionA(384, k, l, m)
 
-        self.inception2 = nn.Sequential(*[InceptionB()] * 7)
+        self.inception2 = nn.Sequential(*[InceptionB() for _ in range(7)])
         self.reduction2 = ReductionB(1024)
 
-        self.inception3 = nn.Sequential(*[InceptionC()] * 3)
+        self.inception3 = nn.Sequential(*[InceptionC() for _ in range(3)])
 
         self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Dropout(0.8),
                                 nn.Linear(1536, classes))
@@ -378,13 +378,13 @@ class InceptionRes(nn.Module):
 
         self.stem = InceptionStemRes() if mode == 'V1' else InceptionStem()
 
-        self.inception1 = nn.Sequential(*[InceptionResA(layer[0], mode)] * 5)
+        self.inception1 = nn.Sequential(*[InceptionResA(layer[0], mode) for _ in range(5)])
         self.reduction1 = ReductionA(layer[0], k, l, m)
 
-        self.inception2 = nn.Sequential(*[InceptionResB(layer[1], mode)] * 10)
+        self.inception2 = nn.Sequential(*[InceptionResB(layer[1], mode) for _ in range(10)])
         self.reduction2 = ReductionResB(layer[1], mode)
 
-        self.inception3 = nn.Sequential(*[InceptionResC(layer[2], mode)] * 5)
+        self.inception3 = nn.Sequential(*[InceptionResC(layer[2], mode) for _ in range(5)])
 
         self.fc = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Dropout(0.8),
                                 nn.Linear(layer[2], classes))

@@ -1,4 +1,3 @@
-from itertools import product as product
 from math import sqrt
 
 import torch

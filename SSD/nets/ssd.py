@@ -1,8 +1,62 @@
 import torch
 import torch.nn as nn
 from utils.config import Config
-from nets.ssd_layers import Detect, L2Norm, PriorBox
-from nets.vgg import vgg, get_layer
+from nets.all_blocks import Detect, PriorBox, L2Norm
+
+conv_arch = [(2, 64), (2, 128), (3, 256), (3, 512), (3, 512)]
+
+
+def vgg_block(num_convs, in_channels, out_channels):
+    layers = []
+    for _ in range(num_convs):
+        layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1))
+        layers.append(nn.ReLU(inplace=True))
+        in_channels = out_channels
+    layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
+    return nn.Sequential(*layers)
+
+
+def get_vgg_layer():
+    layers = nn.Sequential()
+    in_channels = 3
+    # 卷积层部分
+    for i, (num_convs, out_channels) in enumerate(conv_arch):
+        layers.add_module(f'conv{i + 1}_3', vgg_block(num_convs, in_channels, out_channels))
+        in_channels = out_channels
+        # 修改最后一个池化
+    layers[-1][-1] = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
+    # conv6 conv7
+    conv6 = nn.Sequential(nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6), nn.ReLU(inplace=True))
+    conv7 = nn.Sequential(nn.Conv2d(1024, 1024, kernel_size=1), nn.ReLU(inplace=True))
+    layers.add_module('conv6', conv6)
+    layers.add_module('conv7', conv7)
+    in_channels = layers[-1][-2].out_channels
+
+    # conv8_2   1024,19,19 -> 512,10,10
+    conv8_2 = nn.Sequential(nn.Conv2d(in_channels, 256, kernel_size=1, stride=1),
+                            nn.ReLU(inplace=True),
+                            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+                            nn.ReLU(inplace=True))
+    # conv9_2   512,10,10 -> 256,5,5
+    conv9_2 = nn.Sequential(nn.Conv2d(512, 128, kernel_size=1, stride=1),
+                            nn.ReLU(inplace=True),
+                            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+                            nn.ReLU(inplace=True))
+    # conv10_2  256,5,5 -> 256,3,3
+    conv10_2 = nn.Sequential(nn.Conv2d(256, 128, kernel_size=1, stride=1),
+                             nn.ReLU(inplace=True),
+                             nn.Conv2d(128, 256, kernel_size=3, stride=1),
+                             nn.ReLU(inplace=True))
+    # conv11_2  256,3,3 -> 256,1,1
+    conv11_2 = nn.Sequential(nn.Conv2d(256, 128, kernel_size=1, stride=1),
+                             nn.ReLU(inplace=True),
+                             nn.Conv2d(128, 256, kernel_size=3, stride=1),
+                             nn.ReLU(inplace=True))
+    layers.add_module('conv8_2', conv8_2)
+    layers.add_module('conv9_2', conv9_2)
+    layers.add_module('conv10_2', conv10_2)
+    layers.add_module('conv11_2', conv11_2)
+    return layers
 
 
 class SSD(nn.Module):
@@ -78,46 +132,12 @@ class SSD(nn.Module):
         return output
 
 
-def get_bone_extras(i):
-    """增加从主干网络出来的额外部分"""
-    layers = vgg(i)
-    in_channels = layers[-1][-2].out_channels
-
-    # conv8_2   1024,19,19 -> 512,10,10
-    conv8_2 = nn.Sequential(nn.Conv2d(in_channels, 256, kernel_size=1, stride=1),
-                            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
-                            nn.ReLU(inplace=True))
-    # conv9_2   512,10,10 -> 256,5,5
-    conv9_2 = nn.Sequential(nn.Conv2d(512, 128, kernel_size=1, stride=1),
-                            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
-                            nn.ReLU(inplace=True))
-    # conv10_2  256,5,5 -> 256,3,3
-    conv10_2 = nn.Sequential(nn.Conv2d(256, 128, kernel_size=1, stride=1),
-                             nn.Conv2d(128, 256, kernel_size=3, stride=1),
-                             nn.ReLU(inplace=True))
-    # conv11_2  256,3,3 -> 256,1,1
-    conv11_2 = nn.Sequential(nn.Conv2d(256, 128, kernel_size=1, stride=1),
-                             nn.Conv2d(128, 256, kernel_size=3, stride=1),
-                             nn.ReLU(inplace=True))
-    layers.add_module('conv8_2', conv8_2)
-    layers.add_module('conv9_2', conv9_2)
-    layers.add_module('conv10_2', conv10_2)
-    layers.add_module('conv11_2', conv11_2)
-    return layers
-
-
 def get_multibox(layers, num_classes):
     """Multibox"""
-    # 4 6 6 6 4 4 为锚框数
     loc_layers = nn.ModuleList()
     conf_layers = nn.ModuleList()
 
-    feature_maps = []
-    x = torch.randn(size=(5, 3, Config['in_height'], Config['in_width']))
-    for layer in layers:
-        x = layer(x)
-        feature_maps.append((x.shape[2], x.shape[3]))
-    feature_maps = [feature_maps[2]] + feature_maps[-5:]
+    feature_maps = [(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)]
 
     # conv4_3 to (512,38,38)
     in_channels = layers[3][4].out_channels
@@ -160,7 +180,7 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
         nms_iou: 框交并比的阈值
     """
     # 主干网络和额外网络
-    layers = get_bone_extras(3)
+    layers = get_vgg_layer()
     # Multibox, loc_layers: bbox_predict, conf_layers: class_predict,
     loc_layers, conf_layers, feature_maps = get_multibox(layers, num_classes)
     ssd = SSD(mode, layers, loc_layers, conf_layers, feature_maps, num_classes, confidence, nms_iou)
@@ -168,8 +188,7 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
 
 
 if __name__ == '__main__':
-    # print(get_bone_extras(3))
-    ssd = get_ssd('test', 21)
+    ssd = get_ssd('test', 3)
     x = torch.randn(size=(1, 3, 300, 300))
     # get_layer(ssd, x)
-    # print(ssd(x).shape)
+    print(ssd(x).shape)

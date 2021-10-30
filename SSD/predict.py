@@ -9,8 +9,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from predict_ssd import SSD
-from utils.utils import show_image
+from utils.predict_ssd import SSD
 
 if __name__ == "__main__":
     # -------------------------------------------------------------------------#
@@ -20,6 +19,7 @@ if __name__ == "__main__":
     #   'fps'表示测试fps
     # -------------------------------------------------------------------------#
     mode = "predict"
+    img_path = 'img'
     # -------------------------------------------------------------------------#
     #   video_path用于指定视频的路径，当video_path=0时表示检测摄像头
     #   video_save_path表示视频保存的路径，当video_save_path=""时表示不保存
@@ -32,13 +32,16 @@ if __name__ == "__main__":
     video_fps = 25.0
 
     ssd = SSD()
-    img_list = []
-    for img in os.listdir('img'):
-        img_list.append('img/' + img)
-    # img_list = ['img/street.jpg']
-    for img in img_list:
-        image = cv2.cvtColor(cv2.imread(img), cv2.COLOR_BGR2RGB)
+    img_path_list = []
+    for img in os.listdir(img_path):
+        img_path_list.append(os.path.join(img_path, img))
+
+    image_list = [cv2.cvtColor(cv2.imread(img), cv2.COLOR_BGR2RGB) for img in img_path_list]
+
+    for image in image_list:
         r_image = ssd.detect_image(image)
+    # ssd.show_batch_ssd(image_list[:5])
+    # ssd.get_fps(image_list*2)
 
     """
 

@@ -45,9 +45,9 @@ if args.set_class_iou is not None:
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-GT_PATH = os.path.join(os.getcwd(), 'input', 'ground-truth')
-DR_PATH = os.path.join(os.getcwd(), 'input', 'detection-results')
-IMG_PATH = os.path.join(os.getcwd(), 'input', 'images-optional')
+GT_PATH = os.path.join(os.getcwd(), 'mAP', 'ground_truth')
+DR_PATH = os.path.join(os.getcwd(), 'mAP', 'detection_result')
+IMG_PATH = os.path.join(os.getcwd(), 'mAP', 'images_optional')
 if os.path.exists(IMG_PATH):
     for dirpath, dirnames, files in os.walk(IMG_PATH):
         if not files:
@@ -350,7 +350,7 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
 TEMP_FILES_PATH = ".temp_files"
 if not os.path.exists(TEMP_FILES_PATH):  # if it doesn't exist already
     os.makedirs(TEMP_FILES_PATH)
-results_files_path = "results"
+results_files_path = "../../../subject/2021深度学习/results"
 if os.path.exists(results_files_path):  # if it exist already
     # reset the results directory
     shutil.rmtree(results_files_path)
@@ -729,7 +729,7 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
             plt.fill_between(area_under_curve_x, 0, area_under_curve_y, alpha=0.2, edgecolor='r')
 
             fig = plt.gcf()
-            fig.canvas.set_window_title('AP ' + class_name)
+            # fig.canvas.set_window_title('AP ' + class_name)
 
             plt.title('class: ' + text)
             plt.xlabel('Recall')

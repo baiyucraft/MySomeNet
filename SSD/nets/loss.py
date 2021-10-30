@@ -1,13 +1,8 @@
-import os
-import scipy.signal
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from matplotlib import pyplot as plt
 from utils.utils import log_sum_exp, match
 from utils.config import Config
-
-MEANS = (104, 117, 123)
 
 
 class MultiBoxLoss(nn.Module):
@@ -99,54 +94,3 @@ class MultiBoxLoss(nn.Module):
         loss_c /= N
 
         return loss_l, loss_c
-
-
-def weights_init(net, init_type='normal', init_gain=0.01, path=None):
-    """权重初始化"""
-
-    def init_func(m):
-        # 卷积层权重
-        if m.__class__.__name__ == 'Conv2d':
-            if init_type == 'normal':
-                torch.nn.init.normal_(m.weight.data, 0.0, init_gain)
-            elif init_type == 'xavier':
-                torch.nn.init.xavier_normal_(m.weight.data, gain=init_gain)
-        # 归一层
-        elif m.__class__.__name__ == 'BatchNorm2d':
-            torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-            torch.nn.init.constant_(m.bias.data, 0.0)
-
-    if path:
-        print(f'initialize network with path')
-        net.load_state_dict(torch.load(path))
-    else:
-        print(f'initialize network with {init_type} type')
-        net.apply(init_func)
-
-
-def get_vgg_pth(net, path):
-    """加载训练好的vgg参数"""
-    pre = torch.load(path)
-    # 得到前26个参数
-    pre_list = list(pre.values())[:-6]
-
-    # 替换并加载
-    net_param = net.state_dict()
-    for i, key in enumerate(net_param):
-        if i != 26:
-            net_param[key] = pre_list[i]
-        else:
-            break
-    net.load_state_dict(net_param)
-    print('加载vgg参数')
-
-
-def get_already_pth(net, path):
-    """得到已经训练的SSD"""
-    pre = torch.load(path)
-    pre_list = list(pre.values())
-    pre = pre_list[:30] + pre_list[31:] + [pre_list[30]]
-    net_param = net.state_dict()
-    for net_key, p in zip(net_param, pre):
-        net_param[net_key] = p
-    net.load_state_dict(net_param)

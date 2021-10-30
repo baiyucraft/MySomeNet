@@ -2,6 +2,7 @@ from torch import nn
 
 
 # https://arxiv.org/abs/1312.4400
+
 def nin_block(in_channels, out_channels, kernel_size, strides, padding):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, kernel_size, strides, padding), nn.ReLU(inplace=True),

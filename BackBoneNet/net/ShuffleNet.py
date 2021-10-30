@@ -1,10 +1,9 @@
-from functools import partial
-
 import torch
 from torch import nn
+from functools import partial
+
 
 # https://arxiv.org/abs/1707.01083
-from Tools.utils import test_net
 
 
 def channel_shuffle(x, groups):
@@ -114,4 +113,3 @@ class ShuffleNet(nn.Module):
         x = self.conv1(x)
         x = self.conv_base(x)
         return self.fc(x)
-
