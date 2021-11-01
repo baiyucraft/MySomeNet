@@ -1,0 +1,9 @@
+/dataset/
+/.idea/
+/.ipynb_checkpoints/
+/__pycache__/
+/img/
+/model_data/
+/VOCdevkit/
+/mAP/
+/logs/
