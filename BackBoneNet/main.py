@@ -30,7 +30,8 @@ if __name__ == '__main__':
     # net = MobileNetV3(257)
     # net = SqueezeNet(257)
     # net = ShuffleNet(257)
-    net = ShuffleNetV2(257)
+    # net = ShuffleNetV2(257)
+    net = ResNeXt(257)
     net_path = f'model_data/{net.name}.pth'
     load_net_param(net, net_path)
     train(net, train_iter, test_iter, num_epochs, lr, weight_decay, try_gpu(), net_path, save=True)
