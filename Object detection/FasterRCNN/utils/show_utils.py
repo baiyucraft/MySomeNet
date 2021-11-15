@@ -1,8 +1,7 @@
 import torch
 from matplotlib import pyplot as plt
 
-Classes = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
-           'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
+from utils.config import Config
 
 
 def bbox_to_rect(bbox, color):
@@ -15,10 +14,14 @@ def bbox_to_rect(bbox, color):
         fill=False, edgecolor=color, linewidth=2)
 
 
-def show_bboxes(image, bboxes, labels=None, confs=None, colors=None):
+def show_bboxes(image, bboxes, labels=None, confs=None, colors=None, axes=None):
     """显示所有边界框。"""
     # h * w * 3
-    axes = plt.imshow(image).axes
+    shape = image.shape[:2]
+    if not axes:
+        plt.rcParams['figure.figsize'] = (8, 6)
+        axes = plt.gca()
+    axes.imshow(image)
     # 不显示x轴与y轴
     axes.get_xaxis().set_visible(False)
     axes.get_yaxis().set_visible(False)
@@ -30,23 +33,22 @@ def show_bboxes(image, bboxes, labels=None, confs=None, colors=None):
             obj = [obj]
         return obj
 
-    box_labels = _make_list([f'{label}={conf:.2f}' for label, conf in zip(labels, confs)])
+    box_labels = _make_list([f'{Config["Classes"][label]}={conf:.2f}' for label, conf in zip(labels, confs)])
     colors = _make_list(colors, ['b', 'g', 'r', 'm', 'c'])
     for i, bbox in enumerate(bboxes):
         bbox[:2] = bbox[:2] - 5
         bbox[2:] = bbox[2:] + 5
         bbox[:2].clamp_(min=0)
-        bbox[2].clamp_(max=image.shape[1])
-        bbox[3].clamp_(max=image.shape[0])
+        bbox[2].clamp_(max=shape[1])
+        bbox[3].clamp_(max=shape[0])
 
         # 单个
-        # color = colors[i % len(colors)]
-        color = colors[Classes.index(labels[i])]
-        rect = bbox_to_rect(bbox.detach().numpy(), color)
+        color = colors[labels[i]]
+        rect = bbox_to_rect(bbox.numpy(), color)
         axes.add_patch(rect)
         if box_labels and len(box_labels) > i:
             text_color = 'k' if color == 'w' else 'w'
-            axes.text(rect.xy[0], rect.xy[1], box_labels[i], va='center', ha='center', fontsize=9, color=text_color,
+            axes.text(rect.xy[0], rect.xy[1], box_labels[i], va='center', ha='center', fontsize=8, color=text_color,
                       bbox=dict(facecolor=color, lw=0))
 
 

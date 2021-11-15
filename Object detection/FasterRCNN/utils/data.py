@@ -2,9 +2,7 @@ import torch
 from torch.utils import data
 from torchvision import transforms
 from torchvision import datasets
-
-Classes = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
-           'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
+from utils.config import Config
 
 
 def deal_target(key):
@@ -26,7 +24,7 @@ def deal_target(key):
         x2 = float(o['bndbox']['xmax'])
         y2 = float(o['bndbox']['ymax'])
         boxes.append([x1, y1, x2, y2])
-        labels.append(Classes.index(cls))
+        labels.append(Config['Classes'].index(cls))
 
     target = {'boxes': torch.as_tensor(boxes, dtype=torch.float32),
               'labels': torch.as_tensor(labels, dtype=torch.int64)}
