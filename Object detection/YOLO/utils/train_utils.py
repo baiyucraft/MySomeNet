@@ -58,7 +58,7 @@ def train_epoch(net, train_iter, updater, device, mode='train'):
         else:
             net.eval()
         loss = net(X, y, device)
-        # print(losses)
+        # print(loss)
 
         # 反向传播
         if mode == 'train':

@@ -109,7 +109,7 @@ class YOLOv1Loss(nn.Module, ):
         noo_target_c = noo_target[:, 4:last_id:5].flatten()
         # 4: 不是obj的box的 confidence 目标损失
         no_obj_loss = F.mse_loss(noo_pred_c, noo_target_c, reduction='sum')
-
+        # print(loc_loss, contain_loss, no_obj_loss, class_loss)
         return (self.l_coord * loc_loss + contain_loss + self.l_noobj * no_obj_loss + class_loss) / batch_size
 
 

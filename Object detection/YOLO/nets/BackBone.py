@@ -55,8 +55,12 @@ class BackBone(nn.Module):
         self.conv6 = nn.Sequential(BaseConv(1024, 1024, kernel_size=3),
                                    BaseConv(1024, 1024, kernel_size=3))
 
-        self.fc = nn.Sequential(nn.Flatten(), nn.Linear(7 * 7 * 1024, 4096), nn.LeakyReLU(),
-                                nn.Linear(4096, 7 * 7 * 30), nn.Sigmoid())
+        # self.fc = nn.Sequential(nn.Flatten(), nn.Linear(7 * 7 * 1024, 4096), nn.LeakyReLU(),
+        #                         nn.Linear(4096, 7 * 7 * 30), nn.Sigmoid())
+
+        # 原4096太大 改 256
+        self.fc = nn.Sequential(nn.Flatten(), nn.Linear(7 * 7 * 1024, 256), nn.LeakyReLU(),
+                                nn.Linear(256, 7 * 7 * 30), nn.Sigmoid())
 
     def forward(self, x):
         x = self.conv1(x)
