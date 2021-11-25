@@ -187,8 +187,15 @@ def get_ssd(mode, num_classes, confidence=0.5, nms_iou=0.45):
     return ssd
 
 
+def get_layer(ssd, x):
+    for i in ssd.net:
+        x = i(x)
+        print(x.shape)
+
+
 if __name__ == '__main__':
     ssd = get_ssd('test', 3)
     x = torch.randn(size=(1, 3, 300, 300))
-    # get_layer(ssd, x)
-    print(ssd(x).shape)
+    # print(ssd)
+    get_layer(ssd, x)
+    # print(ssd(x).shape)

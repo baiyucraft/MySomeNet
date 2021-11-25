@@ -77,25 +77,28 @@ class Detect(nn.Module):
 
 
 class PriorBox(object):
+    """
+    Args:
+        feature_maps: 输入的特征图的大小
+        cfg: 一些参数
+    """
+
     def __init__(self, feature_maps, cfg):
         super(PriorBox, self).__init__()
         self.feature_maps = feature_maps
-        # 大小
+        # 尺度大小
         self.sizes = cfg['sizes']
         # 宽高比
         self.ratios = cfg['ratios']
 
         self.variance = cfg['variance']
         self.clip = cfg['clip']
-        for v in self.variance:
-            if v <= 0:
-                raise ValueError('Variances must be greater than 0')
 
     def forward(self):
+        # 针对不同大小的特征图生成先验框，并结合起来
         output = torch.cat([multibox_prior(f, self.sizes[i], self.ratios[i]) for i, f in enumerate(self.feature_maps)])
-
-        if self.clip:
-            output.clamp_(max=1, min=0)
+        # 将框的 x、y 限制在0-1内
+        output.clamp_(max=1, min=0)
         return output
 
 

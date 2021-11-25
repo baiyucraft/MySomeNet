@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from torchvision import transforms
 from tqdm import tqdm
 
-from nets.YOLOv1 import YOLOv1
+from nets.YOLOv2 import YOLOv2
 from utils.config import Config
 from utils.show_utils import show_bboxes
 
@@ -24,7 +24,7 @@ class Yolo:
 
     def generate(self):
         """载入模型"""
-        net = YOLOv1()
+        net = YOLOv2()
         net.load_state_dict(torch.load(self.model_path, map_location=self.device))
         net.to(self.device)
         self.net = net.eval()
@@ -36,7 +36,7 @@ class Yolo:
 
     def get_boxes_(self, image):
         trans = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Resize((448, 448)),
+                                    transforms.Resize(Config['Size']),
                                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         photo = trans(image).unsqueeze(0)
 

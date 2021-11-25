@@ -12,7 +12,6 @@ Config = {
     'ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
 
     'variance': [0.1, 0.2],
-    'clip': True,
     'Classes': ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
                 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 }

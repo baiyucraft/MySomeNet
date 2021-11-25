@@ -172,11 +172,13 @@ class YOLOPredict(nn.Module):
                 p_boxes.append(cl_box[keep])
                 p_labels.append(torch.full(keep.shape, cl, device=device))
                 p_scores.append(cl_scores[keep])
-
+            if not p_boxes:
+                continue
             p_boxes = torch.cat(p_boxes)
             p_labels = torch.cat(p_labels)
             p_scores = torch.cat(p_scores)
             output.append({'boxes': p_boxes,
                            'labels': p_labels,
                            'scores': p_scores})
+
         return output
