@@ -5,3 +5,5 @@
 /img/
 /model_data/
 /VOCdevkit/
+/data_test/
+/Segmentation/DeepLabV3Plus/datasets/weeds/

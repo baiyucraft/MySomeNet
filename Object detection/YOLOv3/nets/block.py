@@ -6,22 +6,6 @@ from utils.config import Config
 from torchvision.ops import nms
 
 
-class Reorg(nn.Module):
-    def __init__(self, stride=2):
-        super(Reorg, self).__init__()
-        self.stride = stride
-
-    def forward(self, x):
-        batch_size, c, h, w = x.shape
-        stride = self.stride
-
-        x = x.reshape(batch_size, c, h // stride, stride, w // stride, stride).transpose(3, 4)
-        x = x.reshape(batch_size, c, h // stride * w // stride, stride * stride).transpose(2, 3)
-        x = x.reshape(batch_size, c, stride * stride, h // stride, w // stride).transpose(1, 2)
-        x = x.reshape(batch_size, stride * stride * c, h // stride, w // stride)
-        return x
-
-
 def smooth_BCE(eps=0.1):
     # return positive, negative label smoothing BCE targets
     return 1.0 - 0.5 * eps, 0.5 * eps
@@ -81,9 +65,8 @@ class YOLOv3Loss(nn.Module):
         lbox *= self.box_loss
         lobj *= self.obj_loss
         lcls *= self.cls_loss
-        bs = tobj.shape[0]
 
-        return (lbox + lobj + lcls) * bs, torch.cat((lbox, lobj, lcls)).detach()
+        return lbox + lobj + lcls, torch.cat((lbox, lobj, lcls)).detach()
 
     def build_t(self, pred, targets, device):
         c1, c2, c3 = pred

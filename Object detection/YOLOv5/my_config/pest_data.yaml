@@ -1,0 +1,15 @@
+#path: ./datasets/pest
+path: ./datasets/pest_test/
+train:
+  - ./datasets/pest_test/images
+val:
+  - ./datasets/pest_test/images
+#  - images/val
+test:
+  -./datasets/pest_test/images
+#  - images/test
+
+# Classes
+nc: 2  # number of classes
+names: [ "bug", "fruit bug" ]
+

@@ -223,8 +223,8 @@ def load_caltech_256(batch_size=8, shape=(224, 224)):
 
     train_data = torchvision.datasets.Caltech256(root="../dataset", transform=trans, download=False)
     test_data = torchvision.datasets.Caltech256(root="../dataset", transform=trans_test, download=False)
-    return (data.DataLoader(train_data, batch_size, shuffle=True, num_workers=2),
-            data.DataLoader(test_data, batch_size, shuffle=True, num_workers=2))
+    return (data.DataLoader(train_data, batch_size, shuffle=True, pin_memory=True, num_workers=2),
+            data.DataLoader(test_data, batch_size, shuffle=True, pin_memory=True, num_workers=2))
 
 
 def get_caltech_256_label(key):

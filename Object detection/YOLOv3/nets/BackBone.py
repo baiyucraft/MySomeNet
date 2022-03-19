@@ -1,10 +1,9 @@
 import torch
 from torch import nn
-from nets.block import Reorg
 from utils.config import Config
 
 cfg = [[1, 64, 128],
-       [3, 128, 256],
+       [2, 128, 256],
        [8, 256, 512],
        [8, 512, 1024],
        [4, 1024, 1024]]
@@ -73,7 +72,7 @@ class CTrans(nn.Module):
 
     def _make_grid(self, grid_size, device):
         grid_len = torch.arange(grid_size, device=device)
-        c_i, c_j = torch.meshgrid(grid_len, grid_len)
+        c_i, c_j = torch.meshgrid(grid_len, grid_len, indexing='ij')
         grid = torch.stack((c_i, c_j), 2).expand((1, self.num_anchors, grid_size, grid_size, 2)).float()
 
         anchor_grid = self.anchors.clone().to(device).reshape((1, self.num_anchors, 1, 1, 2))
